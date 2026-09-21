@@ -36,6 +36,44 @@ function fontBytes(): Uint8Array {
   return fontCache;
 }
 
+/**
+ * pdf-lib hands every string to fontkit, which detects the script and, for
+ * Arabic, reverses the glyphs into visual order by itself. Our strings are
+ * already reshaped and in visual order (shapeForPdf), so that second reversal
+ * mirrored every line that starts with an Arabic letter. Force a script-less,
+ * left-to-right layout so the glyphs stay exactly in the order we computed.
+ *
+ * OpenType features are switched off as well: pdf-lib only writes widths for
+ * the glyphs reachable through the cmap, so a substituted variant (Amiri swaps
+ * "(" for a narrower glyph, for instance) gets the PDF default width in every
+ * viewer and the line comes out wider than we measured. Presentation forms
+ * are already the final glyphs, so nothing is lost.
+ */
+const NO_FEATURES = Object.fromEntries(
+  [
+    "rvrn", "ltra", "ltrm", "rtla", "rtlm", "frac", "numr", "dnom", "rand", "trak", "opbd",
+    "ccmp", "locl", "rlig", "mark", "mkmk", "calt", "clig", "liga", "rclt", "curs", "kern",
+    "dist", "vert", "vrt2", "init", "medi", "fina", "isol",
+  ].map((tag) => [tag, false])
+);
+
+const visualOrderFontkit = {
+  create(buffer: Parameters<typeof fontkit.create>[0]) {
+    const font = fontkit.create(buffer);
+    // pdf-lib's typing stops at (text, features); the runtime signature is
+    // layout(text, features, script, language, direction).
+    const layout = font.layout.bind(font) as (
+      text: string,
+      features?: Record<string, boolean>,
+      script?: string,
+      language?: string,
+      direction?: "ltr" | "rtl"
+    ) => ReturnType<typeof font.layout>;
+    font.layout = (text) => layout(text, NO_FEATURES, "latn", undefined, "ltr");
+    return font;
+  },
+};
+
 export type Align = "start" | "end" | "center";
 
 export class Builder {
@@ -48,8 +86,11 @@ export class Builder {
   static async create(rtl: boolean) {
     const b = new Builder();
     b.doc = await PDFDocument.create();
-    b.doc.registerFontkit(fontkit);
-    b.font = await b.doc.embedFont(fontBytes(), { subset: true });
+    b.doc.registerFontkit(visualOrderFontkit);
+    // Never subset: fontkit's subsetter drops the components of Amiri's
+    // composite glyphs, leaving most letters blank in every viewer. The full
+    // font adds ~210 KB compressed, which WhatsApp handles fine.
+    b.font = await b.doc.embedFont(fontBytes(), { subset: false });
     b.rtl = rtl;
     b.addPage();
     return b;
@@ -266,7 +307,8 @@ export async function buildTrainingPdf(data: TrainingPdfData): Promise<Uint8Arra
       b.y -= 14;
     }
     if (m.startDate && m.endDate) {
-      b.text(`${data.labels.period}: ${m.startDate} → ${m.endDate}`, {
+      // En dash, not an arrow: Amiri has no arrow glyphs (they render as boxes).
+      b.text(`${data.labels.period}: ${m.startDate} – ${m.endDate}`, {
         size: 10,
         color: MUTED,
       });
@@ -293,7 +335,9 @@ export async function buildTrainingPdf(data: TrainingPdfData): Promise<Uint8Arra
       }
       if (run.length > 1) {
         b.ensure(24);
-        b.text(`⟩ ${data.labels.superset}`, {
+        // "›" is one of the few marker glyphs Amiri ships. Inside an RTL run
+        // the bidi mirroring flips it to "‹", so it points into the text.
+        b.text(`› ${data.labels.superset}`, {
           size: 10,
           indent: 8,
           color: rgb(0.5, 0.35, 0.05),
@@ -350,7 +394,10 @@ export async function buildNutritionPdf(data: NutritionPdfData): Promise<Uint8Ar
     day.meals.forEach((meal, idx) => {
       if (!meal.trim()) return;
       b.ensure(18);
-      b.text(`${idx + 1}. ${meal}`, { size: 11, indent: 8 });
+      // The number sits in its own column: inside the bidi run a trailing
+      // "." would drift away from the digit.
+      b.text(String(idx + 1), { size: 11, indent: 8, color: MUTED });
+      b.text(meal, { size: 11, indent: 28 });
       b.y -= 17;
     });
     b.y -= 8;

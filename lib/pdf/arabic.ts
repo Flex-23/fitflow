@@ -19,8 +19,13 @@ export function shapeForPdf(text: string): string {
   const arabic = hasArabic(text);
   const reshaped = arabic ? convertArabic(text) : text;
   const levels = bidi.getEmbeddingLevels(reshaped, arabic ? "rtl" : "ltr");
-  const segments = bidi.getReorderSegments(reshaped, levels);
   const chars = Array.from(reshaped);
+  // Brackets inside right-to-left runs must show their mirrored glyph, or
+  // "(نص)" comes out as ")نص(" once the run is reversed.
+  for (const [i, mirrored] of bidi.getMirroredCharactersMap(reshaped, levels.levels)) {
+    chars[i] = mirrored;
+  }
+  const segments = bidi.getReorderSegments(reshaped, levels);
   for (const [start, end] of segments) {
     const slice = chars.slice(start, end + 1).reverse();
     for (let i = 0; i < slice.length; i++) chars[start + i] = slice[i];
