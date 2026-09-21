@@ -3,8 +3,10 @@ import { MessageCircle, AlertTriangle } from "lucide-react";
 import { requireRole } from "@/lib/auth/dal";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
-import { getExpiringSoonThreshold } from "@/lib/settings";
+import { getExpiringSoonThreshold, getSetting } from "@/lib/settings";
 import { isWhatsAppEnabled, countryCode } from "@/lib/whatsapp";
+import { WA_NUMBER_KEY, WA_LINKED_AT_KEY } from "@/lib/whatsapp/client";
+import { formatDate } from "@/lib/i18n/format";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +26,12 @@ export default async function SettingsPage() {
   const whatsapp = isWhatsAppEnabled();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
   const publicUrl = !/localhost|127\.0\.0\.1/.test(appUrl);
+  // The paired number is remembered in the database, so it shows even while
+  // the socket is still coming back up after a restart.
+  const [linkedNumber, linkedAt] = await Promise.all([
+    getSetting(WA_NUMBER_KEY, ""),
+    getSetting(WA_LINKED_AT_KEY, ""),
+  ]);
 
   return (
     <div>
@@ -50,7 +58,18 @@ export default async function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground">{t.whatsappDesc}</p>
-            <div className="grid gap-2 text-sm sm:grid-cols-2">
+            <div className="grid gap-2 text-sm sm:grid-cols-3">
+              <div className="rounded-lg bg-muted/50 px-3 py-2">
+                <p className="text-xs text-muted-foreground">{t.whatsappLinkedNumber}</p>
+                <p className="font-semibold" dir="ltr">
+                  {linkedNumber ? `+${linkedNumber}` : "—"}
+                </p>
+                {linkedNumber && linkedAt && (
+                  <p className="text-xs text-muted-foreground">
+                    {t.whatsappLinkedOn} {formatDate(linkedAt, locale)}
+                  </p>
+                )}
+              </div>
               <div className="rounded-lg bg-muted/50 px-3 py-2">
                 <p className="text-xs text-muted-foreground">{t.whatsappCountryCode}</p>
                 <p className="font-semibold" dir="ltr">

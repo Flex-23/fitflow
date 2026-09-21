@@ -15,6 +15,7 @@ import {
   X,
   Send,
   Loader2,
+  MessageCircle,
 } from "lucide-react";
 import { deleteTemplate, type TrainingCourseDTO } from "@/app/actions/courses";
 import { sendCourseToMember } from "@/app/actions/whatsapp";
@@ -128,6 +129,24 @@ export function PreviousCoursesDialog({
                       {t.autoDeleteOn} {formatDate(c.expiresAt, locale)}
                     </span>
                   )}
+                  {whatsappEnabled &&
+                    (c.sentAt && c.sentTo ? (
+                      <Badge
+                        variant="success"
+                        className="gap-1"
+                        title={`${t.sentOn} +${c.sentTo} · ${formatDate(c.sentAt, locale)}`}
+                      >
+                        <MessageCircle className="size-3" />
+                        {t.sentOn}
+                        <span dir="ltr">+{c.sentTo}</span>
+                        <span className="font-normal opacity-80">· {formatDate(c.sentAt, locale)}</span>
+                      </Badge>
+                    ) : (
+                      <Badge variant="muted" className="gap-1">
+                        <MessageCircle className="size-3" />
+                        {t.notSent}
+                      </Badge>
+                    ))}
                 </div>
                 <div className="flex items-center gap-1.5">
                   {whatsappEnabled && member && (

@@ -346,6 +346,8 @@ const ar: Dictionary = {
     whatsappDesc:
       "عند حفظ الكورس يفتح برنامج واتساب على هذه الحاسبة على محادثة العضو برسالة جاهزة تحوي رابط الملف — اضغط إرسال فقط. (واتساب لا يسمح بإرفاق الملف تلقائياً عبر الرابط، لذا يُرسل كرابط خاص.)",
     whatsappCountryCode: "رمز الدولة",
+    whatsappLinkedNumber: "رقم الصالة المرتبط",
+    whatsappLinkedOn: "تم الربط في",
     publicUrl: "رابط التطبيق",
     localUrlWarning:
       "رابط التطبيق محلي (localhost) — لن يفتح على هاتف العضو. ضع عنواناً عاماً في NEXT_PUBLIC_APP_URL قبل الإرسال الفعلي.",
@@ -570,6 +572,7 @@ const ar: Dictionary = {
     DELETE_DEBT: "حذف ديناً",
     CREATE_BACKUP: "أنشأ نسخة احتياطية",
     RESTORE_BACKUP: "استعاد نسخة احتياطية",
+    SEND_COURSE: "أرسل كورساً عبر واتساب",
   },
   videos: {
     title: "مكتبة الفيديوهات",
@@ -647,6 +650,8 @@ const ar: Dictionary = {
     sendWhatsApp: "إرسال واتساب",
     sending: "جارٍ الإرسال…",
     sentTo: "تم إرسال الملف على واتساب إلى",
+    sentOn: "أُرسل إلى",
+    notSent: "لم يُرسل بعد",
     resend: "إعادة الإرسال",
     openInApp: "فتح المحادثة في واتساب",
     errNotConnected: "رقم الصالة غير مرتبط بواتساب — اطلب من المدير ربطه من الإعدادات.",

@@ -43,6 +43,8 @@ export default async function TrainingPage() {
     createdAt: c.createdAt.toISOString(),
     expiresAt: null,
     shareToken: null,
+    sentTo: null,
+    sentAt: null,
     days: c.days.map((d) => ({
       label: d.label,
       exercises: d.exercises.map((e) => ({

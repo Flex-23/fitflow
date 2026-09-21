@@ -76,6 +76,7 @@ enum ActivityAction {
   DELETE_DEBT
   CREATE_BACKUP
   RESTORE_BACKUP
+  SEND_COURSE
 }
 
 enum NotificationType {
@@ -272,6 +273,10 @@ model TrainingCourse {
   createdAt DateTime  @default(now())
   // Member courses auto-delete after 2 months; templates keep this null.
   expiresAt DateTime?
+  // Last successful WhatsApp delivery: international number (digits only)
+  // the PDF went to, and when. Null until the first successful send.
+  sentTo String?
+  sentAt DateTime?
 
   days CourseDay[]
 
@@ -325,6 +330,9 @@ model NutritionCourse {
 
   createdAt DateTime  @default(now())
   expiresAt DateTime?
+  // See TrainingCourse.sentTo / sentAt.
+  sentTo String?
+  sentAt DateTime?
 
   days NutritionDay[]
 

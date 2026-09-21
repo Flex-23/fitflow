@@ -30,6 +30,9 @@ export type TrainingCourseDTO = {
   expiresAt: string | null;
   /** Public link token; null for templates. */
   shareToken: string | null;
+  /** Last successful WhatsApp delivery (international digits) and when. */
+  sentTo: string | null;
+  sentAt: string | null;
   days: {
     label: string;
     exercises: {
@@ -77,6 +80,8 @@ function serializeCourse(course: {
   createdAt: Date;
   expiresAt: Date | null;
   shareToken: string | null;
+  sentTo: string | null;
+  sentAt: Date | null;
   days: {
     label: string;
     exercises: {
@@ -94,6 +99,8 @@ function serializeCourse(course: {
     createdAt: course.createdAt.toISOString(),
     expiresAt: course.expiresAt?.toISOString() ?? null,
     shareToken: course.shareToken,
+    sentTo: course.sentTo,
+    sentAt: course.sentAt?.toISOString() ?? null,
     days: course.days.map((d) => ({
       label: d.label,
       exercises: d.exercises.map((e) => ({

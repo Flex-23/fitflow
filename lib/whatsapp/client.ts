@@ -1,8 +1,13 @@
 import "server-only";
-import { mkdir, rm } from "node:fs/promises";
+import { mkdir, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import type { WASocket } from "@whiskeysockets/baileys";
 import type { ILogger } from "@whiskeysockets/baileys/lib/Utils/logger.js";
+import { setSetting } from "@/lib/settings";
+
+/** Setting keys that remember the paired number across restarts. */
+export const WA_NUMBER_KEY = "whatsapp.number";
+export const WA_LINKED_AT_KEY = "whatsapp.linkedAt";
 
 /**
  * WhatsApp link for the gym's own number.
@@ -50,6 +55,31 @@ const state: ClientState =
 
 function authDir(): string {
   return process.env.WHATSAPP_AUTH_DIR || "./storage/whatsapp-auth";
+}
+
+/** True once a QR scan has left credentials on disk. */
+export async function hasCredentials(): Promise<boolean> {
+  try {
+    await stat(path.join(authDir(), "creds.json"));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The paired number is written to the database so the Settings page can show
+ * it before the socket has come back up (e.g. right after a restart), and so
+ * it survives even if the in-memory state is lost. Failures are logged only —
+ * the link itself must not depend on the database.
+ */
+async function rememberNumber(me: string | null) {
+  try {
+    await setSetting(WA_NUMBER_KEY, me ?? "");
+    await setSetting(WA_LINKED_AT_KEY, me ? new Date().toISOString() : "");
+  } catch (e) {
+    console.error("[whatsapp] could not store the linked number", e);
+  }
 }
 
 /** Baileys is chatty; only surface warnings and errors. */
@@ -115,6 +145,7 @@ export async function connect(): Promise<void> {
           state.status = "connected";
           state.me = sock.user?.id?.split(":")[0]?.split("@")[0] ?? null;
           console.info("[whatsapp] connected as", state.me);
+          void rememberNumber(state.me);
         }
         if (u.connection === "close") {
           const code = (u.lastDisconnect?.error as { output?: { statusCode?: number } })?.output
@@ -128,6 +159,7 @@ export async function connect(): Promise<void> {
             state.me = null;
             state.lastError = "logged_out";
             void rm(authDir(), { recursive: true, force: true });
+            void rememberNumber(null);
           } else {
             state.status = "disconnected";
             state.lastError = code ? `close_${code}` : "closed";
@@ -148,6 +180,29 @@ export async function connect(): Promise<void> {
   return state.starting;
 }
 
+/**
+ * Bring a previously paired number back online without anyone pressing
+ * "Link" — used after a server restart (see instrumentation.ts) and right
+ * before a send. Resolves once connected, or after `waitMs` if it is still
+ * not; returns whether the socket is usable.
+ */
+export async function ensureConnected(waitMs = 8_000): Promise<boolean> {
+  // Read through a function: the socket callbacks change `state` while we
+  // wait, which TypeScript's narrowing of `state.status` cannot see.
+  const status = (): WhatsAppStatus => state.status;
+  if (status() === "connected") return true;
+  if (status() === "disconnected" && !(await hasCredentials())) return false;
+  void connect();
+  const deadline = Date.now() + waitMs;
+  while (Date.now() < deadline) {
+    if (status() === "connected") return true;
+    // Pairing needs a person with the phone; do not hold the caller for that.
+    if (status() === "qr") return false;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  return status() === "connected";
+}
+
 /** Unlink this device and forget the stored credentials. */
 export async function disconnect() {
   try {
@@ -160,6 +215,7 @@ export async function disconnect() {
   state.qr = null;
   state.me = null;
   await rm(authDir(), { recursive: true, force: true }).catch(() => {});
+  await rememberNumber(null);
 }
 
 export type SendResult =

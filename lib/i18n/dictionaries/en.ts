@@ -344,6 +344,8 @@ const en = {
     whatsappDesc:
       "Saving a course opens WhatsApp on this computer at the member's chat with a ready message containing the file link — just press send. (WhatsApp cannot attach a file through a link, so the course travels as a private link.)",
     whatsappCountryCode: "Country code",
+    whatsappLinkedNumber: "Linked gym number",
+    whatsappLinkedOn: "Linked on",
     publicUrl: "App URL",
     localUrlWarning:
       "The app URL is local (localhost) — it will not open on a member's phone. Set a public address in NEXT_PUBLIC_APP_URL before sending for real.",
@@ -568,6 +570,7 @@ const en = {
     DELETE_DEBT: "Deleted a debt",
     CREATE_BACKUP: "Created a backup",
     RESTORE_BACKUP: "Restored a backup",
+    SEND_COURSE: "Sent a course on WhatsApp",
   },
   videos: {
     title: "Videos library",
@@ -645,6 +648,8 @@ const en = {
     sendWhatsApp: "Send on WhatsApp",
     sending: "Sending…",
     sentTo: "PDF sent on WhatsApp to",
+    sentOn: "Sent to",
+    notSent: "Not sent yet",
     resend: "Send again",
     openInApp: "Open the chat in WhatsApp",
     errNotConnected: "The gym number is not linked to WhatsApp — ask the manager to link it in Settings.",

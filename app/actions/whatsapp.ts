@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/dal";
 import { prisma } from "@/lib/prisma";
+import { logActivity } from "@/lib/activity";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { readCoursePdf, saveCoursePdf, coursePdfFilename, type CourseKind } from "@/lib/pdf/store";
 import { isWhatsAppEnabled, toInternational, buildCourseMessage } from "@/lib/whatsapp";
@@ -16,6 +17,9 @@ export async function getWhatsAppStatus(): Promise<WaStatus> {
   if (!isWhatsAppEnabled()) {
     return { status: "disabled", qr: null, me: null, lastError: null, enabled: false };
   }
+  // A paired number that is merely offline (fresh restart) comes back on its
+  // own; the page polls while the status reads "connecting".
+  if (wa.getStatus().status === "disconnected" && (await wa.hasCredentials())) void wa.connect();
   return { ...wa.getStatus(), enabled: true };
 }
 
@@ -37,7 +41,7 @@ export async function disconnectWhatsApp(): Promise<WaStatus> {
 }
 
 export type SendCourseResult =
-  | { ok: true }
+  | { ok: true; to: string; at: string }
   | {
       ok: false;
       reason: "disabled" | "not_connected" | "not_on_whatsapp" | "no_file" | "not_found" | "failed";
@@ -47,13 +51,14 @@ export type SendCourseResult =
 /**
  * Deliver a saved course to its member as a real PDF attachment.
  * The file was written to disk when the course was saved; it is re-rendered
- * here only if it went missing.
+ * here only if it went missing. Every attempt is written to the activity log
+ * with the number it went to; a success is also stamped on the course.
  */
 export async function sendCourseToMember(
   kind: CourseKind,
   courseId: string
 ): Promise<SendCourseResult> {
-  await requireRole("CAPTAIN");
+  const user = await requireRole("CAPTAIN");
   if (!isWhatsAppEnabled()) return { ok: false, reason: "disabled" };
 
   const course =
@@ -89,13 +94,35 @@ export async function sendCourseToMember(
     base ? `${base}/p/${course.shareToken}` : ""
   );
 
+  // After a restart the paired number is offline until something wakes it.
+  await wa.ensureConnected();
+
+  const to = toInternational(course.member.phone);
   const res = await wa.sendDocument({
-    to: toInternational(course.member.phone),
+    to,
     data: pdf,
     filename: coursePdfFilename(kind, course.member.name),
     caption,
   });
 
-  if (res.sent) return { ok: true };
-  return { ok: false, reason: res.reason, detail: res.detail };
+  const kindLabel = kind === "training" ? "تدريب" : "تغذية";
+  const outcome = res.sent ? "✓" : `✗ ${res.reason}${res.detail ? `: ${res.detail}` : ""}`;
+  await logActivity({
+    userId: user.id,
+    action: "SEND_COURSE",
+    targetType: kind === "training" ? "TrainingCourse" : "NutritionCourse",
+    targetId: course.id,
+    details: `${course.member.name} • ${kindLabel} • +${to} • ${outcome}`,
+  });
+
+  if (!res.sent) return { ok: false, reason: res.reason, detail: res.detail };
+
+  const at = new Date();
+  const stamp = { sentTo: to, sentAt: at };
+  if (kind === "training") {
+    await prisma.trainingCourse.update({ where: { id: course.id }, data: stamp });
+  } else {
+    await prisma.nutritionCourse.update({ where: { id: course.id }, data: stamp });
+  }
+  return { ok: true, to, at: at.toISOString() };
 }
