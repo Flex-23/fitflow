@@ -37,6 +37,7 @@ const TABLES = [
   "expense",
   "debt",
   "debtPayment",
+  "gateLog",
 ] as const;
 
 type TableName = (typeof TABLES)[number];
@@ -63,6 +64,7 @@ const SQL_TABLE: Record<TableName, string> = {
   expense: "Expense",
   debt: "Debt",
   debtPayment: "DebtPayment",
+  gateLog: "GateLog",
 };
 
 export type BackupFile = {

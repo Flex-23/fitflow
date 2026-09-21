@@ -21,6 +21,11 @@ export type FemaleMeasurement = (typeof FEMALE_MEASUREMENTS)[number];
 const memberFields = z.object({
   name: z.string().trim().min(2),
   phone: z.string().trim().min(6).max(20),
+  // Access card as typed by the desk reader (see lib/gate/card.ts).
+  cardNumber: z.preprocess(
+    emptyToUndefined,
+    z.string().trim().regex(/^\d{4,20}$/).optional()
+  ),
   gender: z.enum(["MALE", "FEMALE"]),
   age: requiredInt(120),
   height: requiredFloat(300), // cm

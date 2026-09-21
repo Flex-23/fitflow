@@ -10,6 +10,7 @@ async function main() {
   // Children first; FK cascades would handle most of it but explicit order is
   // clearer and avoids relying on cascade semantics.
   await prisma.activityLog.deleteMany();
+  await prisma.gateLog.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.debtPayment.deleteMany();
   await prisma.debt.deleteMany();

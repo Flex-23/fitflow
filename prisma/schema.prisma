@@ -135,6 +135,11 @@ model Member {
   glutes    Float?
   arm       Float?
   phone     String   @unique
+  // Access card as the desk reader types it (digits, leading zeros dropped).
+  cardNumber  String? @unique
+  // Low 24 bits of cardNumber — what the turnstile's Wiegand-26 reader
+  // reports to the C3 panel. This is the value the gate bridge looks up.
+  cardWiegand Int?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -142,8 +147,10 @@ model Member {
   trainingCourses  TrainingCourse[]
   nutritionCourses NutritionCourse[]
   notifications    Notification[]
+  gateLogs         GateLog[]
 
   @@index([name])
+  @@index([cardWiegand])
 }
 
 // ────────────────────────────── Subscriptions ──────────────────────────────
@@ -393,6 +400,27 @@ model Notification {
 model Setting {
   key   String @id
   value String @db.Text
+}
+
+// ────────────────────────────── Gate ──────────────────────────────
+
+/// One card presented at the turnstile and what the gate bridge decided.
+/// Written by scripts/gate-bridge.ts, never by the web app.
+model GateLog {
+  id       String  @id @default(cuid())
+  memberId String?
+  member   Member? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  /// Card number exactly as the panel reported it (Wiegand-26 form).
+  card     String
+  door     Int
+  allowed  Boolean
+  /// Why entry was refused: unknown_card, no_subscription, frozen, expired.
+  reason   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([memberId])
 }
 
 // ────────────────────────────── Finance ──────────────────────────────

@@ -25,7 +25,13 @@ export default async function MembersPage({
   const now = new Date();
 
   const where = q
-    ? { OR: [{ name: { contains: q } }, { phone: { contains: q } }] }
+    ? {
+        OR: [
+          { name: { contains: q } },
+          { phone: { contains: q } },
+          { cardNumber: { contains: q.replace(/^0+(?=\d)/, "") } },
+        ],
+      }
     : undefined;
   const current = pageFrom(page);
 
@@ -84,6 +90,7 @@ export default async function MembersPage({
       id: m.id,
       name: m.name,
       phone: m.phone,
+      cardNumber: m.cardNumber,
       gender: m.gender,
       age: m.age,
       height: m.height,

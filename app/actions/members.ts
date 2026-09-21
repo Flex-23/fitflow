@@ -7,7 +7,18 @@ import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
 import { sendWelcomeMessage } from "@/lib/whatsapp";
 import { deleteCoursePdfsForMembers } from "@/lib/courses";
+import { cardData } from "@/lib/gate/card";
 import { type ActionState, DAY_MS } from "@/lib/action-state";
+
+/** True when another member already holds this card. */
+async function cardTaken(cardNumber: string | null, exceptId?: string): Promise<boolean> {
+  if (!cardNumber) return false;
+  const clash = await prisma.member.findFirst({
+    where: { cardNumber, ...(exceptId ? { NOT: { id: exceptId } } : {}) },
+    select: { id: true },
+  });
+  return !!clash;
+}
 
 export async function registerMember(
   _prev: ActionState,
@@ -23,6 +34,9 @@ export async function registerMember(
 
   const existing = await prisma.member.findUnique({ where: { phone: data.phone } });
   if (existing) return { error: "phone_exists" };
+
+  const card = cardData(data.cardNumber);
+  if (await cardTaken(card.cardNumber)) return { error: "card_exists" };
 
   const plan = await prisma.subscriptionPlan.findUnique({
     where: { id: data.planId },
@@ -45,6 +59,7 @@ export async function registerMember(
         height: data.height,
         weight: data.weight,
         ...measurementData(data),
+        ...card,
       },
     });
     const subscription = await tx.subscription.create({
@@ -113,6 +128,9 @@ export async function updateMember(
   });
   if (clash) return { error: "phone_exists" };
 
+  const card = cardData(data.cardNumber);
+  if (await cardTaken(card.cardNumber, id)) return { error: "card_exists" };
+
   await prisma.member.update({
     where: { id },
     data: {
@@ -123,6 +141,7 @@ export async function updateMember(
       height: data.height,
       weight: data.weight,
       ...measurementData(data),
+      ...card,
     },
   });
   await logActivity({

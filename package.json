@@ -14,7 +14,8 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx --env-file=.env prisma/seed.ts",
     "db:seed:demo": "tsx --env-file=.env prisma/seed-demo.ts",
-    "db:reset": "tsx --env-file=.env prisma/reset-data.ts && npm run db:seed && npm run db:seed:demo"
+    "db:reset": "tsx --env-file=.env prisma/reset-data.ts && npm run db:seed && npm run db:seed:demo",
+    "gate": "tsx --env-file=.env scripts/gate-bridge.ts"
   },
   "prisma": {
     "seed": "tsx --env-file=.env prisma/seed.ts"

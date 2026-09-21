@@ -23,6 +23,7 @@ import {
   Bell,
   Settings,
   DatabaseBackup,
+  DoorOpen,
   LogOut,
   Menu,
   X,
@@ -82,6 +83,7 @@ export function AppShell({
         { href: "/expired", label: n.expired, icon: CalendarX2 },
         { href: "/deferred", label: n.deferred, icon: Wallet },
         { href: "/members", label: n.members, icon: Users },
+        { href: "/gate", label: n.gate, icon: DoorOpen },
       ],
     },
     canCoach && {

@@ -24,6 +24,7 @@ import {
   Mars,
   Venus,
   Snowflake,
+  IdCard,
 } from "lucide-react";
 import type { PaymentMethod, SubscriptionStatus } from "@prisma/client";
 import { updateMember, deleteMember } from "@/app/actions/members";
@@ -33,6 +34,7 @@ import {
   FemaleMeasurementFields,
   type Gender,
 } from "@/components/reception/gender-fields";
+import { CardNumberInput } from "@/components/reception/card-number-input";
 import { emptyState } from "@/lib/action-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,6 +81,7 @@ export type MemberRow = {
   id: string;
   name: string;
   phone: string;
+  cardNumber: string | null;
   gender: Gender;
   age: number | null;
   height: number | null;
@@ -314,9 +317,19 @@ function MemberDetails({
               {member.gender === "FEMALE" ? t.female : t.male}
             </Badge>
           </div>
-          <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Phone className="size-3.5" />
-            <span dir="ltr" className="tabular-nums">{member.phone}</span>
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <Phone className="size-3.5" />
+              <span dir="ltr" className="tabular-nums">{member.phone}</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <IdCard className="size-3.5" />
+              {member.cardNumber ? (
+                <span dir="ltr" className="tabular-nums">{member.cardNumber}</span>
+              ) : (
+                <span className="text-xs">{t.noCard}</span>
+              )}
+            </span>
           </p>
         </div>
       </div>
@@ -622,6 +635,8 @@ function EditMemberForm({
       onDone();
     } else if (state.error === "phone_exists") {
       toast.error(t.phoneExists);
+    } else if (state.error === "card_exists") {
+      toast.error(t.cardExists);
     } else if (state.error) {
       toast.error(dict.common.somethingWrong);
     }
@@ -655,6 +670,16 @@ function EditMemberForm({
           <Label htmlFor="gender">{t.gender}</Label>
           <GenderToggle value={gender} onChange={setGender} dict={dict} />
         </div>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="cardNumber">
+          {t.cardNumber}
+          <span className="ms-1 text-xs font-normal text-muted-foreground">
+            ({dict.common.optional})
+          </span>
+        </Label>
+        <CardNumberInput defaultValue={member.cardNumber} placeholder={t.cardPlaceholder} />
+        {err("cardNumber") && <p className="text-xs text-destructive">{err("cardNumber")}</p>}
       </div>
       <div className="grid grid-cols-3 gap-3">
         <div className="space-y-2">

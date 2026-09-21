@@ -16,6 +16,7 @@ import {
   Receipt,
 } from "lucide-react";
 import { registerMember } from "@/app/actions/members";
+import { CardNumberInput } from "@/components/reception/card-number-input";
 import { emptyState, DAY_MS, type ActionState } from "@/lib/action-state";
 import { Input } from "@/components/ui/input";
 import { MoneyInput } from "@/components/ui/money-input";
@@ -75,6 +76,8 @@ export function RegistrationForm({
         setReceived("");
       } else if (res.error === "phone_exists") {
         toast.error(t.phoneExists);
+      } else if (res.error === "card_exists") {
+        toast.error(t.cardExists);
       } else if (res.error === "invalid_plan") {
         toast.error(t.invalidPlan);
       } else if (res.error === "invalid" && res.fieldErrors?.planId) {
@@ -155,7 +158,16 @@ export function RegistrationForm({
                 />
               </IconInput>
             </Field>
-            <div className="grid grid-cols-3 gap-3">
+            <Field
+              label={t.cardNumber}
+              htmlFor="cardNumber"
+              optional={dict.common.optional}
+              error={err("cardNumber")}
+            >
+              <CardNumberInput placeholder={t.cardPlaceholder} />
+              <p className="text-xs text-muted-foreground">{t.cardHint}</p>
+            </Field>
+            <div className="grid grid-cols-3 gap-3 sm:col-span-2">
               <Field label={t.age} htmlFor="age" error={err("age")}>
                 <IconInput icon={Cake}>
                   <Input
