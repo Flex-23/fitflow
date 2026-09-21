@@ -1,0 +1,201 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { requireRole, requireUser } from "@/lib/auth/dal";
+import {
+  createAccountSchema,
+  updateAccountSchema,
+  resetPasswordSchema,
+  changeOwnPasswordSchema,
+} from "@/schemas/account";
+import { prisma } from "@/lib/prisma";
+import { hashPassword, verifyPassword } from "@/lib/auth/password";
+import { logActivity } from "@/lib/activity";
+import type { ActionState } from "@/lib/action-state";
+
+/** Managers can create any role, including other managers. */
+export async function createAccount(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const manager = await requireRole("MANAGER");
+  const parsed = createAccountSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { error: "invalid", fieldErrors: parsed.error.flatten().fieldErrors };
+  }
+  const { displayName, username, password, role, canAddVideos } = parsed.data;
+
+  const existing = await prisma.user.findUnique({ where: { username } });
+  if (existing) return { error: "username_taken" };
+
+  const user = await prisma.user.create({
+    data: {
+      displayName,
+      username,
+      role,
+      hashedPassword: await hashPassword(password),
+      // Managers always may; captains only when granted; reception never.
+      canAddVideos: role === "MANAGER" ? true : role === "CAPTAIN" ? canAddVideos : false,
+      createdById: manager.id,
+    },
+  });
+  await logActivity({
+    userId: manager.id,
+    action: "CREATE_USER",
+    targetType: "User",
+    targetId: user.id,
+    details: `${displayName} (${role})`,
+  });
+  revalidatePath("/captains");
+  return { ok: true };
+}
+
+/** The guards that keep the gym from locking itself out. */
+async function lastActiveManagerCheck(targetId: string, becomesInactiveOrDemoted: boolean) {
+  if (!becomesInactiveOrDemoted) return true;
+  const others = await prisma.user.count({
+    where: { role: "MANAGER", isActive: true, NOT: { id: targetId } },
+  });
+  return others > 0;
+}
+
+export async function updateAccount(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const manager = await requireRole("MANAGER");
+  const parsed = updateAccountSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { error: "invalid", fieldErrors: parsed.error.flatten().fieldErrors };
+  }
+  const { id, displayName, role, isActive, canAddVideos } = parsed.data;
+
+  const target = await prisma.user.findUnique({ where: { id } });
+  if (!target) return { error: "not_found" };
+
+  // You cannot demote or deactivate yourself, and the last active manager
+  // must stay a manager.
+  const self = target.id === manager.id;
+  if (self && (role !== "MANAGER" || !isActive)) return { error: "self_lockout" };
+  const losesManager = target.role === "MANAGER" && (role !== "MANAGER" || !isActive);
+  if (!(await lastActiveManagerCheck(id, losesManager))) return { error: "last_manager" };
+
+  await prisma.user.update({
+    where: { id },
+    data: {
+      displayName,
+      role,
+      isActive,
+      canAddVideos: role === "MANAGER" ? true : role === "CAPTAIN" ? canAddVideos : false,
+    },
+  });
+  await logActivity({
+    userId: manager.id,
+    action: "UPDATE_USER",
+    targetType: "User",
+    targetId: id,
+    details: `${displayName} (${role})${target.role !== role ? ` • was ${target.role}` : ""}`,
+  });
+  revalidatePath("/captains");
+  revalidatePath("/videos");
+  return { ok: true };
+}
+
+export async function resetPassword(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const manager = await requireRole("MANAGER");
+  const parsed = resetPasswordSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { error: "invalid", fieldErrors: parsed.error.flatten().fieldErrors };
+  }
+  await prisma.user.update({
+    where: { id: parsed.data.id },
+    data: { hashedPassword: await hashPassword(parsed.data.password) },
+  });
+  await logActivity({
+    userId: manager.id,
+    action: "UPDATE_USER",
+    targetType: "User",
+    targetId: parsed.data.id,
+    details: "password reset",
+  });
+  return { ok: true };
+}
+
+export async function toggleVideoPermission(id: string, canAddVideos: boolean) {
+  const manager = await requireRole("MANAGER");
+  const target = await prisma.user.findUnique({ where: { id } });
+  if (!target || target.role !== "CAPTAIN") return;
+  await prisma.user.update({ where: { id }, data: { canAddVideos } });
+  await logActivity({
+    userId: manager.id,
+    action: "TOGGLE_VIDEO_PERMISSION",
+    targetType: "User",
+    targetId: id,
+    details: `${target.displayName}: ${canAddVideos ? "on" : "off"}`,
+  });
+  revalidatePath("/captains");
+  revalidatePath("/videos");
+}
+
+/**
+ * Remove an account. Its activity log rows cascade away; everything it
+ * created (members, courses, payments…) is kept and simply loses the
+ * "created by" link, so no gym data is ever lost with a staff member.
+ */
+export async function deleteAccount(id: string): Promise<ActionState> {
+  const manager = await requireRole("MANAGER");
+  const target = await prisma.user.findUnique({ where: { id } });
+  if (!target) return { error: "not_found" };
+  if (target.id === manager.id) return { error: "self_lockout" };
+  if (!(await lastActiveManagerCheck(id, target.role === "MANAGER"))) {
+    return { error: "last_manager" };
+  }
+
+  await prisma.user.delete({ where: { id } });
+  await logActivity({
+    userId: manager.id,
+    action: "UPDATE_USER",
+    targetType: "User",
+    targetId: id,
+    details: `deleted ${target.displayName} (${target.role})`,
+  });
+  revalidatePath("/captains");
+  return { ok: true };
+}
+
+/** Any signed-in user may change their own password. */
+export async function changeOwnPassword(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const user = await requireUser();
+  const parsed = changeOwnPasswordSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { error: "invalid", fieldErrors: parsed.error.flatten().fieldErrors };
+  }
+  const { currentPassword, newPassword } = parsed.data;
+
+  const row = await prisma.user.findUniqueOrThrow({
+    where: { id: user.id },
+    select: { hashedPassword: true },
+  });
+  if (!(await verifyPassword(currentPassword, row.hashedPassword))) {
+    return { error: "wrong_password" };
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { hashedPassword: await hashPassword(newPassword) },
+  });
+  await logActivity({
+    userId: user.id,
+    action: "UPDATE_USER",
+    targetType: "User",
+    targetId: user.id,
+    details: "changed own password",
+  });
+  return { ok: true };
+}

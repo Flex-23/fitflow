@@ -1,0 +1,7 @@
+-- AlterTable
+ALTER TABLE `member` ADD COLUMN `arm` DOUBLE NULL,
+    ADD COLUMN `chest` DOUBLE NULL,
+    ADD COLUMN `gender` ENUM('MALE', 'FEMALE') NOT NULL DEFAULT 'MALE',
+    ADD COLUMN `glutes` DOUBLE NULL,
+    ADD COLUMN `hips` DOUBLE NULL,
+    ADD COLUMN `waist` DOUBLE NULL;
