@@ -1,13 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { renderTrainingPdf, renderNutritionPdf, pdfResponse } from "@/lib/pdf/render-course";
-import { readCoursePdf } from "@/lib/pdf/store";
 
 /**
  * Public course PDF, reached through the private share link a captain sends
  * over WhatsApp. The token (nanoid) is the credential — the same model the
  * exercise video links use — so the member needs no account to open their own
  * program. Short path because the link travels inside a chat message.
+ *
+ * The file is rendered per request, so it always matches the course as it
+ * stands and disappears with it.
  */
 export async function GET(
   req: Request,
@@ -16,8 +18,6 @@ export async function GET(
   const { token } = await params;
   if (!token) return new Response("Not found", { status: 404 });
 
-  // The course must still exist: a stored file alone is not authorisation, or
-  // a deleted (or auto-purged) course would stay downloadable forever.
   const [training, nutrition] = await Promise.all([
     prisma.trainingCourse.findUnique({
       where: { shareToken: token },
@@ -29,11 +29,6 @@ export async function GET(
     }),
   ]);
   if (!training && !nutrition) return new Response("Not found", { status: 404 });
-
-  // Serve the file written when the course was saved; re-render only if it
-  // went missing.
-  const stored = await readCoursePdf(token);
-  if (stored) return pdfResponse(stored, `course-${token.slice(0, 8)}`);
 
   const locale = await getLocale();
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin;

@@ -1,18 +1,11 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  // Baileys keeps a long-lived WhatsApp socket and loads native-ish deps
-  // (libsignal, protobufjs); it must run from node_modules, not be bundled.
-  serverExternalPackages: ["@whiskeysockets/baileys"],
-  // Exercise videos are uploaded from the manager's device. The actual file
-  // transfer goes through a streaming Route Handler (app/api/videos/upload),
-  // but we raise the Server Action limit too so large multipart forms that
-  // include a file don't get rejected outright.
-  experimental: {
-    serverActions: {
-      bodySizeLimit: "512mb",
-    },
-  },
-};
+/**
+ * The app itself never handles large uploads or long-lived sockets: exercise
+ * videos go from the browser straight to Supabase Storage, and WhatsApp runs
+ * in a worker on the gym computer. So nothing here needs raising — a hosted
+ * function caps request and response bodies at 4.5 MB regardless.
+ */
+const nextConfig: NextConfig = {};
 
 export default nextConfig;

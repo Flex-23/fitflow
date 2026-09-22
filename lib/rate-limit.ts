@@ -1,19 +1,17 @@
 import "server-only";
 import { headers } from "next/headers";
+import { prisma } from "@/lib/prisma";
 
 /**
- * Small in-memory throttle for the public entry points (staff login, member
- * phone check). The app runs as a single Node process, so a Map is enough —
- * move this to Redis only if it is ever scaled across instances.
+ * Throttle for the public entry points (staff login, member phone check).
+ *
+ * The counters live in the database rather than in process memory: the app
+ * runs as serverless functions, so each request may hit a fresh instance and
+ * an in-memory Map would let an attacker start from zero every time.
+ *
+ * Every helper fails open — a database hiccup must never lock the gym's staff
+ * out of their own system.
  */
-
-type Bucket = { fails: number; lockedUntil: number; firstFail: number };
-
-const globalForLimit = globalThis as unknown as {
-  fitflowLimits?: Map<string, Bucket>;
-};
-const buckets: Map<string, Bucket> =
-  globalForLimit.fitflowLimits ?? (globalForLimit.fitflowLimits = new Map());
 
 export type LimitRule = {
   /** Failures allowed inside the window before locking. */
@@ -45,44 +43,60 @@ export async function clientKey(): Promise<string> {
 }
 
 /** Milliseconds left on the lock, or 0 when the key may proceed. */
-export function lockedFor(key: string): number {
-  const b = buckets.get(key);
-  if (!b) return 0;
-  const left = b.lockedUntil - Date.now();
-  if (left <= 0) {
-    if (b.lockedUntil > 0) buckets.delete(key);
+export async function lockedFor(key: string): Promise<number> {
+  try {
+    const row = await prisma.rateLimit.findUnique({ where: { key } });
+    if (!row?.lockedUntil) return 0;
+    return Math.max(0, row.lockedUntil.getTime() - Date.now());
+  } catch {
     return 0;
   }
-  return left;
 }
 
 /** Record a failure; returns the lock time in ms once the limit is hit. */
-export function recordFailure(key: string, rule: LimitRule): number {
-  const now = Date.now();
-  const b = buckets.get(key);
+export async function recordFailure(key: string, rule: LimitRule): Promise<number> {
+  try {
+    const now = new Date();
+    const row = await prisma.rateLimit.findUnique({ where: { key } });
 
-  // First failure, or the previous window has aged out.
-  if (!b || now - b.firstFail > rule.windowMs) {
-    buckets.set(key, { fails: 1, firstFail: now, lockedUntil: 0 });
+    // First failure, or the previous window has aged out.
+    if (!row || now.getTime() - row.firstFailAt.getTime() > rule.windowMs) {
+      await prisma.rateLimit.upsert({
+        where: { key },
+        update: { fails: 1, firstFailAt: now, lockedUntil: null },
+        create: { key, fails: 1, firstFailAt: now },
+      });
+      return 0;
+    }
+
+    const fails = row.fails + 1;
+    const lock = fails >= rule.max;
+    await prisma.rateLimit.update({
+      where: { key },
+      data: { fails, lockedUntil: lock ? new Date(now.getTime() + rule.lockMs) : null },
+    });
+    return lock ? rule.lockMs : 0;
+  } catch {
     return 0;
   }
-
-  b.fails += 1;
-  if (b.fails >= rule.max) {
-    b.lockedUntil = now + rule.lockMs;
-    return rule.lockMs;
-  }
-  return 0;
 }
 
 /** Clear the counter after a success. */
-export function clearFailures(key: string) {
-  buckets.delete(key);
+export async function clearFailures(key: string): Promise<void> {
+  try {
+    await prisma.rateLimit.deleteMany({ where: { key } });
+  } catch {
+    // Nothing to do — the row ages out of its window anyway.
+  }
 }
 
 /** Attempts left before the key locks (for a friendlier message). */
-export function attemptsLeft(key: string, rule: LimitRule): number {
-  const b = buckets.get(key);
-  if (!b || Date.now() - b.firstFail > rule.windowMs) return rule.max;
-  return Math.max(0, rule.max - b.fails);
+export async function attemptsLeft(key: string, rule: LimitRule): Promise<number> {
+  try {
+    const row = await prisma.rateLimit.findUnique({ where: { key } });
+    if (!row || Date.now() - row.firstFailAt.getTime() > rule.windowMs) return rule.max;
+    return Math.max(0, rule.max - row.fails);
+  } catch {
+    return rule.max;
+  }
 }

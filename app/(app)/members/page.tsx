@@ -27,9 +27,9 @@ export default async function MembersPage({
   const where = q
     ? {
         OR: [
-          { name: { contains: q } },
-          { phone: { contains: q } },
-          { cardNumber: { contains: q.replace(/^0+(?=\d)/, "") } },
+          { name: { contains: q, mode: "insensitive" as const } },
+          { phone: { contains: q, mode: "insensitive" as const } },
+          { cardNumber: { contains: q.replace(/^0+(?=\d)/, ""), mode: "insensitive" as const } },
         ],
       }
     : undefined;

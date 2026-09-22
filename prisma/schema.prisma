@@ -1,14 +1,18 @@
 // FitFlow — data model
-// Database: MySQL (XAMPP locally). Move to a remote server by changing only
-// DATABASE_URL — no code changes required.
+// Database: PostgreSQL (Supabase).
+//
+// DATABASE_URL points at the transaction-mode pooler (pgbouncer) that the app
+// and the gym-side workers use; DIRECT_URL is the session-mode port, which
+// Prisma needs for migrations because pgbouncer cannot run them.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ────────────────────────────── Enums ──────────────────────────────
@@ -408,6 +412,58 @@ model Notification {
 model Setting {
   key   String @id
   value String @db.Text
+}
+
+/// Login / phone-check throttle. In-process memory cannot hold this once the
+/// app runs as serverless functions, so the counters live in the database.
+model RateLimit {
+  key         String    @id
+  fails       Int       @default(0)
+  firstFailAt DateTime  @default(now())
+  lockedUntil DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  @@index([lockedUntil])
+}
+
+// ────────────────────────────── WhatsApp delivery ──────────────────────────────
+
+enum OutboxStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+/// A course waiting to go out on WhatsApp.
+///
+/// The hosted app cannot hold a WhatsApp socket open, so it only queues the
+/// request here; the worker on the gym computer (`npm run whatsapp`) picks it
+/// up, downloads the course PDF from its share link and sends it from the
+/// gym's number.
+model WhatsAppOutbox {
+  id String @id @default(cuid())
+
+  /// "training" | "nutrition" — which course table `courseId` refers to.
+  kind       String
+  courseId   String
+  /// Copied at queue time so the worker needs no joins and the row still
+  /// makes sense in the log after the course auto-expires.
+  memberName String
+  /// International form, digits only (e.g. 9647701234567).
+  phone      String
+  shareToken String
+
+  status    OutboxStatus @default(PENDING)
+  attempts  Int          @default(0)
+  lastError String?      @db.Text
+
+  requestedById String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sentAt        DateTime?
+
+  @@index([status, createdAt])
+  @@index([courseId])
 }
 
 // ────────────────────────────── Gate ──────────────────────────────

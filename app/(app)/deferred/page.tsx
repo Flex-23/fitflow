@@ -30,7 +30,7 @@ export default async function DeferredPage({
       method: "DEFERRED",
       status: { in: ["ACTIVE", "EXPIRED", "FROZEN"] },
       ...(q
-        ? { member: { OR: [{ name: { contains: q } }, { phone: { contains: q } }] } }
+        ? { member: { OR: [{ name: { contains: q, mode: "insensitive" as const } }, { phone: { contains: q, mode: "insensitive" as const } }] } }
         : {}),
     },
     include: {

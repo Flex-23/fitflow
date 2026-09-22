@@ -7,14 +7,12 @@ import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
 import { nutritionCourseSchema } from "@/schemas/course";
 import { twoMonthsFromNow } from "@/lib/courses";
-import { saveCoursePdf } from "@/lib/pdf/store";
-import { getLocale } from "@/lib/i18n/get-locale";
 
 export async function searchMeals(query: string) {
   await requireRole("CAPTAIN");
   const q = query.trim();
   return prisma.mealSuggestion.findMany({
-    where: q ? { text: { contains: q } } : {},
+    where: q ? { text: { contains: q, mode: "insensitive" as const } } : {},
     orderBy: { usageCount: "desc" },
     take: 8,
     select: { text: true },
@@ -80,16 +78,6 @@ export async function createNutritionCourse(
     targetType: "NutritionCourse",
     targetId: course.id,
   });
-
-  if (course.shareToken) {
-    await saveCoursePdf({
-      kind: "nutrition",
-      id: course.id,
-      shareToken: course.shareToken,
-      locale: await getLocale(),
-      baseUrl: process.env.NEXT_PUBLIC_APP_URL || "",
-    }).catch((e) => console.error("saveCoursePdf failed", e));
-  }
 
   revalidatePath("/nutrition");
   return { ok: true, id: course.id, shareToken: course.shareToken ?? undefined };

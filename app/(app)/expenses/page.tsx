@@ -31,7 +31,7 @@ export default async function ExpensesPage({
   const raw = await prisma.expense.findMany({
     where: {
       spentAt: { gte: from, lte: to },
-      ...(q ? { title: { contains: q } } : {}),
+      ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}),
     },
     include: { createdBy: { select: { displayName: true } } },
     orderBy: { spentAt: "desc" },

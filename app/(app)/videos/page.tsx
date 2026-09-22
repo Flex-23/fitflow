@@ -24,7 +24,7 @@ export default async function VideosPage({
   const dict = await getDictionary(locale);
 
   const raw = await prisma.video.findMany({
-    where: q ? { exerciseName: { contains: q } } : undefined,
+    where: q ? { exerciseName: { contains: q, mode: "insensitive" as const } } : undefined,
     include: { addedBy: { select: { displayName: true } } },
     orderBy: { createdAt: "desc" },
   });

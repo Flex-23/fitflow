@@ -1,13 +1,7 @@
-import "server-only";
 import { mkdir, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import type { WASocket } from "@whiskeysockets/baileys";
 import type { ILogger } from "@whiskeysockets/baileys/lib/Utils/logger.js";
-import { setSetting } from "@/lib/settings";
-
-/** Setting keys that remember the paired number across restarts. */
-export const WA_NUMBER_KEY = "whatsapp.number";
-export const WA_LINKED_AT_KEY = "whatsapp.linkedAt";
 
 /**
  * WhatsApp link for the gym's own number.
@@ -19,6 +13,10 @@ export const WA_LINKED_AT_KEY = "whatsapp.linkedAt";
  *
  * This drives WhatsApp Web's protocol, which is not an official API — use a
  * dedicated gym number, never a personal one.
+ *
+ * Runs only in the worker on the gym computer (`npm run whatsapp`): it needs
+ * a process that stays alive and a writable folder, neither of which a hosted
+ * serverless app has. Nothing in the web app may import this.
  */
 
 export type WhatsAppStatus =
@@ -67,21 +65,6 @@ export async function hasCredentials(): Promise<boolean> {
   }
 }
 
-/**
- * The paired number is written to the database so the Settings page can show
- * it before the socket has come back up (e.g. right after a restart), and so
- * it survives even if the in-memory state is lost. Failures are logged only —
- * the link itself must not depend on the database.
- */
-async function rememberNumber(me: string | null) {
-  try {
-    await setSetting(WA_NUMBER_KEY, me ?? "");
-    await setSetting(WA_LINKED_AT_KEY, me ? new Date().toISOString() : "");
-  } catch (e) {
-    console.error("[whatsapp] could not store the linked number", e);
-  }
-}
-
 /** Baileys is chatty; only surface warnings and errors. */
 const logger: ILogger = {
   level: "warn",
@@ -100,6 +83,19 @@ export function getStatus() {
     me: state.me,
     lastError: state.lastError,
   };
+}
+
+/** Called whenever the link comes up or goes down, so the worker can record it. */
+export type LinkListener = (me: string | null) => void;
+let onLinkChange: LinkListener | null = null;
+export function onLink(listener: LinkListener) {
+  onLinkChange = listener;
+}
+
+/** Called with each new QR payload while pairing. */
+let onQr: ((qr: string) => void) | null = null;
+export function onQrCode(listener: (qr: string) => void) {
+  onQr = listener;
 }
 
 /**
@@ -139,13 +135,14 @@ export async function connect(): Promise<void> {
         if (u.qr) {
           state.qr = u.qr;
           state.status = "qr";
+          onQr?.(u.qr);
         }
         if (u.connection === "open") {
           state.qr = null;
           state.status = "connected";
           state.me = sock.user?.id?.split(":")[0]?.split("@")[0] ?? null;
           console.info("[whatsapp] connected as", state.me);
-          void rememberNumber(state.me);
+          onLinkChange?.(state.me);
         }
         if (u.connection === "close") {
           const code = (u.lastDisconnect?.error as { output?: { statusCode?: number } })?.output
@@ -159,7 +156,7 @@ export async function connect(): Promise<void> {
             state.me = null;
             state.lastError = "logged_out";
             void rm(authDir(), { recursive: true, force: true });
-            void rememberNumber(null);
+            onLinkChange?.(null);
           } else {
             state.status = "disconnected";
             state.lastError = code ? `close_${code}` : "closed";
@@ -181,12 +178,11 @@ export async function connect(): Promise<void> {
 }
 
 /**
- * Bring a previously paired number back online without anyone pressing
- * "Link" — used after a server restart (see instrumentation.ts) and right
- * before a send. Resolves once connected, or after `waitMs` if it is still
- * not; returns whether the socket is usable.
+ * Bring a previously paired number back online without anyone pressing a
+ * button. Resolves once connected, or after `waitMs` if it is still not;
+ * returns whether the socket is usable.
  */
-export async function ensureConnected(waitMs = 8_000): Promise<boolean> {
+export async function ensureConnected(waitMs = 20_000): Promise<boolean> {
   // Read through a function: the socket callbacks change `state` while we
   // wait, which TypeScript's narrowing of `state.status` cannot see.
   const status = (): WhatsAppStatus => state.status;
@@ -215,7 +211,7 @@ export async function disconnect() {
   state.qr = null;
   state.me = null;
   await rm(authDir(), { recursive: true, force: true }).catch(() => {});
-  await rememberNumber(null);
+  onLinkChange?.(null);
 }
 
 export type SendResult =

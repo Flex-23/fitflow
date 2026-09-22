@@ -1,21 +1,28 @@
 import "server-only";
-import { mkdir, readdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { prisma } from "@/lib/prisma";
+import {
+  BACKUP_BUCKET,
+  downloadFile,
+  listFiles,
+  removeFile,
+  storageConfigured,
+  uploadFile,
+} from "@/lib/supabase/storage";
 
 /**
- * Whole-database snapshots as a single JSON file under storage/backups/.
+ * Whole-database snapshots as a single JSON file in the Supabase `backups`
+ * bucket (private — reachable only through the manager-only download route).
  *
  * Every table is dumped in full (Decimals as strings, Dates as ISO) and can be
  * written back verbatim — ids included — so nothing that references a row
  * (course share links, video tokens, session user ids) breaks after a
- * restore. Uploaded videos and generated PDFs live next to this folder and
- * are copied separately: they are large and already sit on disk.
+ * restore. Uploaded videos live in their own bucket and are not copied here:
+ * they are large and already stored durably.
  */
 
 export const BACKUP_FORMAT = 1;
 
-/** Insert order respects foreign keys; restore also disables FK checks. */
+/** Insert order respects foreign keys; deletion walks it backwards. */
 const TABLES = [
   "setting",
   "subscriptionPlan",
@@ -42,31 +49,6 @@ const TABLES = [
 
 type TableName = (typeof TABLES)[number];
 
-/** MySQL table names as Prisma created them (used when truncating). */
-const SQL_TABLE: Record<TableName, string> = {
-  setting: "Setting",
-  subscriptionPlan: "SubscriptionPlan",
-  user: "User",
-  member: "Member",
-  subscription: "Subscription",
-  payment: "Payment",
-  freezeRecord: "FreezeRecord",
-  video: "Video",
-  trainingCourse: "TrainingCourse",
-  courseDay: "CourseDay",
-  exercise: "Exercise",
-  nutritionCourse: "NutritionCourse",
-  nutritionDay: "NutritionDay",
-  nutritionMeal: "NutritionMeal",
-  mealSuggestion: "MealSuggestion",
-  activityLog: "ActivityLog",
-  notification: "Notification",
-  expense: "Expense",
-  debt: "Debt",
-  debtPayment: "DebtPayment",
-  gateLog: "GateLog",
-};
-
 export type BackupFile = {
   format: number;
   createdAt: string;
@@ -82,19 +64,38 @@ export type BackupInfo = {
   counts: Partial<Record<TableName, number>> | null;
 };
 
-export function backupsDir(): string {
-  return process.env.BACKUP_DIR || "./storage/backups";
-}
+/**
+ * Listing every snapshot would otherwise mean downloading each one just to
+ * read its header, so the row counts are kept in one small manifest beside
+ * them. It lives in the bucket rather than the database, which a restore
+ * would overwrite.
+ */
+const MANIFEST = "index.json";
 
-/** Only files we wrote ourselves may be read back — no path games. */
+/** Only names we generate ourselves may be read back — no path games. */
 function safeName(name: string): string | null {
-  const base = path.basename(name);
+  const base = name.split(/[\\/]/).pop() ?? "";
   return /^fitflow-\d{8}-\d{6}\.json$/.test(base) ? base : null;
 }
 
-function filePath(name: string): string | null {
-  const safe = safeName(name);
-  return safe ? path.join(backupsDir(), safe) : null;
+async function readManifest(): Promise<BackupInfo[]> {
+  const raw = await downloadFile(BACKUP_BUCKET, MANIFEST);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw.toString("utf8")) as { items?: BackupInfo[] };
+    return parsed.items ?? [];
+  } catch {
+    return [];
+  }
+}
+
+async function writeManifest(items: BackupInfo[]): Promise<void> {
+  await uploadFile(
+    BACKUP_BUCKET,
+    MANIFEST,
+    Buffer.from(JSON.stringify({ items }), "utf8"),
+    "application/json"
+  );
 }
 
 /**
@@ -108,9 +109,11 @@ function plain(rows: unknown[]): Record<string, unknown>[] {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const model = (t: TableName) => (prisma as any)[t];
 
-export async function createBackup(): Promise<BackupInfo> {
-  await mkdir(backupsDir(), { recursive: true });
+export function backupsConfigured(): boolean {
+  return storageConfigured();
+}
 
+export async function createBackup(): Promise<BackupInfo> {
   const tables = {} as BackupFile["tables"];
   const counts = {} as BackupFile["counts"];
   for (const t of TABLES) {
@@ -132,39 +135,43 @@ export async function createBackup(): Promise<BackupInfo> {
     counts,
     tables,
   };
-  const target = path.join(backupsDir(), name);
-  await writeFile(target, JSON.stringify(body), "utf8");
-  const info = await stat(target);
-  return { name, size: info.size, createdAt: body.createdAt, counts };
+  const bytes = Buffer.from(JSON.stringify(body), "utf8");
+  await uploadFile(BACKUP_BUCKET, name, bytes, "application/json");
+
+  const info: BackupInfo = { name, size: bytes.length, createdAt: body.createdAt, counts };
+  await writeManifest([info, ...(await readManifest()).filter((b) => b.name !== name)]);
+  return info;
 }
 
 export async function listBackups(): Promise<BackupInfo[]> {
-  await mkdir(backupsDir(), { recursive: true });
-  const names = (await readdir(backupsDir())).filter((n) => safeName(n));
-  const out: BackupInfo[] = [];
-  for (const name of names) {
-    const full = path.join(backupsDir(), name);
-    const info = await stat(full);
-    let counts: BackupInfo["counts"] = null;
-    let createdAt = info.mtime.toISOString();
-    try {
-      // Only the header is needed; parse lazily but cheaply for small files.
-      const parsed = JSON.parse(await readFile(full, "utf8")) as BackupFile;
-      counts = parsed.counts;
-      createdAt = parsed.createdAt;
-    } catch {
-      // Unreadable file: still listed, but flagged without counts.
-    }
-    out.push({ name, size: info.size, createdAt, counts });
-  }
-  return out.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  if (!storageConfigured()) return [];
+  const [manifest, objects] = await Promise.all([
+    readManifest(),
+    listFiles(BACKUP_BUCKET),
+  ]);
+  const known = new Map(manifest.map((b) => [b.name, b]));
+
+  // The bucket is the source of truth for what exists; the manifest only adds
+  // the counts. A snapshot uploaded by hand still shows up, without them.
+  return objects
+    .filter((o) => safeName(o.name))
+    .map((o) => {
+      const m = known.get(o.name);
+      return {
+        name: o.name,
+        size: o.size || m?.size || 0,
+        createdAt: m?.createdAt ?? o.createdAt,
+        counts: m?.counts ?? null,
+      };
+    })
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export async function readBackup(name: string): Promise<BackupFile | null> {
-  const full = filePath(name);
-  if (!full) return null;
+  const raw = await readBackupRaw(name);
+  if (!raw) return null;
   try {
-    const parsed = JSON.parse(await readFile(full, "utf8")) as BackupFile;
+    const parsed = JSON.parse(raw.toString("utf8")) as BackupFile;
     if (parsed.app !== "fitflow" || parsed.format !== BACKUP_FORMAT || !parsed.tables) return null;
     return parsed;
   } catch {
@@ -173,54 +180,45 @@ export async function readBackup(name: string): Promise<BackupFile | null> {
 }
 
 export async function readBackupRaw(name: string): Promise<Buffer | null> {
-  const full = filePath(name);
-  if (!full) return null;
-  try {
-    return await readFile(full);
-  } catch {
-    return null;
-  }
+  const safe = safeName(name);
+  if (!safe) return null;
+  return downloadFile(BACKUP_BUCKET, safe);
 }
 
 export async function deleteBackup(name: string): Promise<boolean> {
-  const full = filePath(name);
-  if (!full) return false;
-  try {
-    await unlink(full);
-    return true;
-  } catch {
-    return false;
-  }
+  const safe = safeName(name);
+  if (!safe) return false;
+  await removeFile(BACKUP_BUCKET, safe);
+  await writeManifest((await readManifest()).filter((b) => b.name !== safe));
+  return true;
 }
 
 /**
- * Replace the whole database with a snapshot. Runs in one transaction with
- * foreign-key checks off, so either every table comes back or none does.
+ * Replace the whole database with a snapshot, in one transaction so either
+ * every table comes back or none does. Tables are emptied in reverse
+ * dependency order and refilled in forward order, which keeps foreign keys
+ * satisfied at every step without touching database-level settings.
  */
 export async function restoreBackup(file: BackupFile): Promise<Record<TableName, number>> {
   const restored = {} as Record<TableName, number>;
 
   await prisma.$transaction(
     async (tx) => {
-      await tx.$executeRawUnsafe("SET FOREIGN_KEY_CHECKS = 0");
-      try {
-        for (const t of [...TABLES].reverse()) {
-          await tx.$executeRawUnsafe(`DELETE FROM \`${SQL_TABLE[t]}\``);
+      for (const t of [...TABLES].reverse()) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (tx as any)[t].deleteMany();
+      }
+      for (const t of TABLES) {
+        const rows = file.tables[t] ?? [];
+        restored[t] = rows.length;
+        // createMany in chunks keeps each statement a sane size.
+        for (let i = 0; i < rows.length; i += 500) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (tx as any)[t].createMany({ data: rows.slice(i, i + 500) });
         }
-        for (const t of TABLES) {
-          const rows = file.tables[t] ?? [];
-          restored[t] = rows.length;
-          // createMany in chunks keeps each statement a sane size.
-          for (let i = 0; i < rows.length; i += 500) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await (tx as any)[t].createMany({ data: rows.slice(i, i + 500) });
-          }
-        }
-      } finally {
-        await tx.$executeRawUnsafe("SET FOREIGN_KEY_CHECKS = 1");
       }
     },
-    { timeout: 120_000 }
+    { timeout: 120_000, maxWait: 20_000 }
   );
 
   return restored;
@@ -231,17 +229,17 @@ let dailyChecked = "";
 
 /**
  * Write today's snapshot if none exists yet. Cheap to call on every manager
- * page load; only the first call of the day touches the disk.
+ * page load; only the first call of the day does any real work.
  */
 export async function ensureDailyBackup(): Promise<void> {
+  if (!storageConfigured()) return;
   const today = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
   const prefix = `fitflow-${today.getFullYear()}${pad(today.getMonth() + 1)}${pad(today.getDate())}`;
   if (dailyChecked === prefix) return;
   try {
-    await mkdir(backupsDir(), { recursive: true });
-    const names = await readdir(backupsDir());
-    if (!names.some((n) => n.startsWith(prefix))) await createBackup();
+    const existing = await listFiles(BACKUP_BUCKET);
+    if (!existing.some((o) => o.name.startsWith(prefix))) await createBackup();
     dailyChecked = prefix;
   } catch (e) {
     console.error("daily backup failed", e);

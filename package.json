@@ -15,7 +15,10 @@
     "db:seed": "tsx --env-file=.env prisma/seed.ts",
     "db:seed:demo": "tsx --env-file=.env prisma/seed-demo.ts",
     "db:reset": "tsx --env-file=.env prisma/reset-data.ts && npm run db:seed && npm run db:seed:demo",
-    "gate": "tsx --env-file=.env scripts/gate-bridge.ts"
+    "gate": "tsx --env-file=.env scripts/gate-bridge.ts",
+    "whatsapp": "tsx --env-file=.env scripts/whatsapp-worker.ts",
+    "migrate-mysql": "tsx --env-file=.env scripts/migrate-mysql-to-postgres.ts",
+    "postinstall": "prisma generate"
   },
   "prisma": {
     "seed": "tsx --env-file=.env prisma/seed.ts"
@@ -24,6 +27,7 @@
     "@hookform/resolvers": "^5.9.1",
     "@pdf-lib/fontkit": "^1.1.1",
     "@prisma/client": "^6.19.3",
+    "@supabase/supabase-js": "^2.117.0",
     "@whiskeysockets/baileys": "^7.0.0-rc14",
     "arabic-reshaper": "^1.1.0",
     "bcryptjs": "^3.0.3",

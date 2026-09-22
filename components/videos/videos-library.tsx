@@ -6,7 +6,12 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Video, Upload, Play, Pencil, Trash2, ShieldCheck, Info } from "lucide-react";
 import { MAX_VIDEO_BYTES, isAcceptedVideoType } from "@/lib/video-formats";
-import { editVideo, deleteVideo } from "@/app/actions/videos";
+import {
+  editVideo,
+  deleteVideo,
+  requestVideoUpload,
+  registerVideo,
+} from "@/app/actions/videos";
 import { emptyState } from "@/lib/action-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -142,7 +147,12 @@ function UploadCard({ dict }: { dict: Dictionary }) {
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
 
-  function upload(e: React.FormEvent) {
+  /**
+   * The file goes straight to Supabase Storage: the app server only signs the
+   * upload and records the result afterwards, because a request through it
+   * would be refused above 4.5 MB.
+   */
+  async function upload(e: React.FormEvent) {
     e.preventDefault();
     if (!file) return toast.error(t.fileRequired);
     if (!name.trim()) return toast.error(t.exerciseName);
@@ -150,36 +160,54 @@ function UploadCard({ dict }: { dict: Dictionary }) {
     // Checked again on the server; this just saves a pointless upload.
     if (file.size > MAX_VIDEO_BYTES) return toast.error(t.fileTooLarge);
 
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("exerciseName", name.trim());
-
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/videos/upload");
-    xhr.upload.onprogress = (ev) => {
-      if (ev.lengthComputable) setProgress(Math.round((ev.loaded / ev.total) * 100));
-    };
-    xhr.onload = () => {
+    const chosen = file;
+    setProgress(0);
+    const ticket = await requestVideoUpload(chosen.type, chosen.size);
+    if (!ticket.ok) {
       setProgress(null);
-      if (xhr.status === 200) {
-        toast.success(t.uploaded);
-        setName("");
-        setFile(null);
-        formRef.current?.reset();
-        router.refresh();
-      } else if (xhr.status === 413) {
-        toast.error(t.fileTooLarge);
-      } else if (xhr.status === 415) {
-        toast.error(t.invalidFile);
-      } else {
-        toast.error(dict.common.somethingWrong);
-      }
-    };
-    xhr.onerror = () => {
+      const messages: Record<string, string> = {
+        too_large: t.fileTooLarge,
+        invalid_file: t.invalidFile,
+        storage_off: t.storageOff,
+      };
+      return toast.error(messages[ticket.error] ?? dict.common.somethingWrong);
+    }
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", ticket.url);
+        xhr.setRequestHeader("Content-Type", chosen.type);
+        xhr.upload.onprogress = (ev) => {
+          if (ev.lengthComputable) setProgress(Math.round((ev.loaded / ev.total) * 100));
+        };
+        xhr.onload = () =>
+          xhr.status >= 200 && xhr.status < 300
+            ? resolve()
+            : reject(new Error(`upload failed (${xhr.status})`));
+        xhr.onerror = () => reject(new Error("network error"));
+        xhr.send(chosen);
+      });
+
+      const res = await registerVideo({
+        exerciseName: name.trim(),
+        storedFilename: ticket.storedFilename,
+        mimeType: chosen.type,
+        sizeBytes: chosen.size,
+        originalName: chosen.name,
+      });
+      setProgress(null);
+      if (!res.ok) return toast.error(dict.common.somethingWrong);
+
+      toast.success(t.uploaded);
+      setName("");
+      setFile(null);
+      formRef.current?.reset();
+      router.refresh();
+    } catch {
       setProgress(null);
       toast.error(dict.common.somethingWrong);
-    };
-    xhr.send(fd);
+    }
   }
 
   return (

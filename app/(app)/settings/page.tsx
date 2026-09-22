@@ -5,7 +5,7 @@ import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
 import { getExpiringSoonThreshold, getSetting } from "@/lib/settings";
 import { isWhatsAppEnabled, countryCode } from "@/lib/whatsapp";
-import { WA_NUMBER_KEY, WA_LINKED_AT_KEY } from "@/lib/whatsapp/client";
+import { WA_NUMBER_KEY, WA_LINKED_AT_KEY } from "@/lib/whatsapp/worker-state";
 import { formatDate } from "@/lib/i18n/format";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -94,7 +94,7 @@ export default async function SettingsPage() {
 
             <div className="space-y-3">
               <p className="text-sm font-semibold">{t.whatsappLinkTitle}</p>
-              <WhatsAppLink dict={dict} initial={await getWhatsAppStatus()} />
+              <WhatsAppLink dict={dict} locale={locale} initial={await getWhatsAppStatus()} />
             </div>
           </CardContent>
         </Card>

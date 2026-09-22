@@ -27,7 +27,7 @@ export default async function ActivePage({
     where: {
       status: { in: ["ACTIVE", "FROZEN"] },
       ...(q
-        ? { member: { OR: [{ name: { contains: q } }, { phone: { contains: q } }] } }
+        ? { member: { OR: [{ name: { contains: q, mode: "insensitive" as const } }, { phone: { contains: q, mode: "insensitive" as const } }] } }
         : {}),
     },
     include: { member: true },

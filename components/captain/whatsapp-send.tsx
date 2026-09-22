@@ -3,30 +3,31 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Send, FileDown, Link2, Check, MessageCircle, Loader2 } from "lucide-react";
-import { sendCourseToMember, type SendCourseResult } from "@/app/actions/whatsapp";
+import { sendCourseToMember, type QueueCourseResult } from "@/app/actions/whatsapp";
 import { Button } from "@/components/ui/button";
 import { desktopLink, buildCourseMessage } from "@/lib/whatsapp";
 import type { Dictionary } from "@/lib/i18n";
 
-/** Turn a send result into the right toast. Shared with the builders. */
-export function reportSend(res: SendCourseResult, memberName: string, dict: Dictionary) {
+/**
+ * Turn a queue result into the right toast. Shared with the builders.
+ *
+ * Success here means "handed to the gym computer", not "delivered" — the
+ * worker sends it moments later, and the Settings page shows anything stuck.
+ */
+export function reportSend(res: QueueCourseResult, memberName: string, dict: Dictionary) {
   const t = dict.captain;
   if (res.ok) {
-    toast.success(`${t.sentTo} ${memberName}`);
+    toast.success(
+      res.alreadyQueued ? t.whatsappAlreadyQueued : `${t.whatsappQueuedToast} — ${memberName}`
+    );
     return;
   }
   const messages: Record<string, string> = {
-    not_connected: t.errNotConnected,
-    not_on_whatsapp: t.errNotOnWhatsApp,
-    no_file: t.errNoFile,
+    no_phone: t.errNotOnWhatsApp,
     not_found: t.errNotFound,
     disabled: t.whatsappStub,
-    failed: dict.common.somethingWrong,
   };
-  toast.error(messages[res.reason] ?? dict.common.somethingWrong, {
-    description: res.detail,
-    duration: 8000,
-  });
+  toast.error(messages[res.reason] ?? dict.common.somethingWrong, { duration: 8000 });
 }
 
 /**

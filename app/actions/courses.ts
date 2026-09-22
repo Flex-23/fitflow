@@ -8,15 +8,13 @@ import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
 import { trainingCourseSchema } from "@/schemas/course";
 import { purgeExpiredCourses, twoMonthsFromNow } from "@/lib/courses";
-import { saveCoursePdf } from "@/lib/pdf/store";
-import { getLocale } from "@/lib/i18n/get-locale";
 
 export async function searchMembers(query: string) {
   await requireRole("CAPTAIN");
   const q = query.trim();
   if (!q) return [];
   return prisma.member.findMany({
-    where: { OR: [{ name: { contains: q } }, { phone: { contains: q } }] },
+    where: { OR: [{ name: { contains: q, mode: "insensitive" as const } }, { phone: { contains: q, mode: "insensitive" as const } }] },
     select: { id: true, name: true, phone: true },
     take: 8,
     orderBy: { name: "asc" },
@@ -231,18 +229,6 @@ export async function createTrainingCourse(
     targetId: course.id,
     details: d.title ?? undefined,
   });
-
-  // Write the PDF to disk straight away: it is what gets attached to the
-  // member's WhatsApp message and what the share link serves.
-  if (course.shareToken) {
-    await saveCoursePdf({
-      kind: "training",
-      id: course.id,
-      shareToken: course.shareToken,
-      locale: await getLocale(),
-      baseUrl: process.env.NEXT_PUBLIC_APP_URL || "",
-    }).catch((e) => console.error("saveCoursePdf failed", e));
-  }
 
   revalidatePath("/training");
   return { ok: true, id: course.id, shareToken: course.shareToken ?? undefined };

@@ -21,7 +21,7 @@ export default async function DebtsPage({
   const dict = await getDictionary(locale);
 
   const where = q
-    ? { OR: [{ personName: { contains: q } }, { phone: { contains: q } }] }
+    ? { OR: [{ personName: { contains: q, mode: "insensitive" as const } }, { phone: { contains: q, mode: "insensitive" as const } }] }
     : undefined;
   const current = pageFrom(page);
 

@@ -26,7 +26,7 @@ export async function requestVideoAccess(
   // This endpoint answers "is this number a paying member?", so it is throttled
   // to stop anyone walking a list of phone numbers through it.
   const key = `watch:${await clientKey()}`;
-  const locked = lockedFor(key);
+  const locked = await lockedFor(key);
   if (locked > 0) return { ok: false, lockedMinutes: Math.ceil(locked / 60_000) };
 
   const video = await prisma.video.findUnique({
@@ -37,13 +37,13 @@ export async function requestVideoAccess(
 
   const member = await findActiveMemberByPhone(phone);
   if (!member) {
-    const lockMs = recordFailure(key, WATCH_RULE);
+    const lockMs = await recordFailure(key, WATCH_RULE);
     return lockMs > 0
       ? { ok: false, lockedMinutes: Math.ceil(lockMs / 60_000) }
       : { ok: false };
   }
 
-  clearFailures(key);
+  await clearFailures(key);
   await createWatchSession(member.id, member.name);
   return { ok: true };
 }
@@ -71,7 +71,7 @@ async function findActiveMemberByPhone(
   const candidates = exact
     ? [exact]
     : await prisma.member.findMany({
-        where: { phone: { contains: digits.slice(-9) } },
+        where: { phone: { contains: digits.slice(-9), mode: "insensitive" as const } },
         select: { id: true, name: true, phone: true },
         take: 5,
       });

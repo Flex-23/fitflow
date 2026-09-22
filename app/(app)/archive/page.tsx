@@ -35,7 +35,7 @@ export default async function ArchivePage({
     prisma.member.findMany({
       where: {
         ...(q
-          ? { OR: [{ name: { contains: q } }, { phone: { contains: q } }] }
+          ? { OR: [{ name: { contains: q, mode: "insensitive" as const } }, { phone: { contains: q, mode: "insensitive" as const } }] }
           : {}),
         // Nobody with a subscription still running (or queued) is "away".
         subscriptions: {

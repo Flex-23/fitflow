@@ -6,7 +6,6 @@ import { registrationSchema, memberSchema, measurementData } from "@/schemas/mem
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
 import { sendWelcomeMessage } from "@/lib/whatsapp";
-import { deleteCoursePdfsForMembers } from "@/lib/courses";
 import { cardData } from "@/lib/gate/card";
 import { type ActionState, DAY_MS } from "@/lib/action-state";
 
@@ -158,9 +157,9 @@ export async function updateMember(
 
 /**
  * Permanently remove a member. Subscriptions, payments, freezes, courses and
- * notifications go with it via the schema's ON DELETE CASCADE rules; the
- * generated course PDFs are removed from disk first, since nothing cascades
- * to the filesystem.
+ * notifications go with it via the schema's ON DELETE CASCADE rules, and the
+ * course share links stop working because the PDFs are rendered from those
+ * rows rather than stored.
  */
 export async function deleteMember(id: string): Promise<ActionState> {
   const user = await requireRole("RECEPTION");
@@ -172,7 +171,6 @@ export async function deleteMember(id: string): Promise<ActionState> {
   });
   if (!member) return { error: "not_found" };
 
-  await deleteCoursePdfsForMembers([id]);
   await prisma.member.delete({ where: { id } });
   await logActivity({
     userId: user.id,
@@ -198,7 +196,6 @@ export async function deleteMembers(ids: string[]): Promise<ActionState> {
   });
   if (members.length === 0) return { error: "not_found" };
 
-  await deleteCoursePdfsForMembers(members.map((m) => m.id));
   const { count } = await prisma.member.deleteMany({
     where: { id: { in: members.map((m) => m.id) } },
   });

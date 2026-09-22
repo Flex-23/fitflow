@@ -4,60 +4,74 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/dal";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
-import { getLocale } from "@/lib/i18n/get-locale";
-import { readCoursePdf, saveCoursePdf, coursePdfFilename, type CourseKind } from "@/lib/pdf/store";
-import { isWhatsAppEnabled, toInternational, buildCourseMessage } from "@/lib/whatsapp";
-import * as wa from "@/lib/whatsapp/client";
-
-export type WaStatus = Awaited<ReturnType<typeof wa.getStatus>> & { enabled: boolean };
-
-/** Current link state, plus the QR payload while pairing. Manager only. */
-export async function getWhatsAppStatus(): Promise<WaStatus> {
-  await requireRole("MANAGER");
-  if (!isWhatsAppEnabled()) {
-    return { status: "disabled", qr: null, me: null, lastError: null, enabled: false };
-  }
-  // A paired number that is merely offline (fresh restart) comes back on its
-  // own; the page polls while the status reads "connecting".
-  if (wa.getStatus().status === "disconnected" && (await wa.hasCredentials())) void wa.connect();
-  return { ...wa.getStatus(), enabled: true };
-}
-
-/** Start pairing (or reconnect). Manager only. */
-export async function connectWhatsApp(): Promise<WaStatus> {
-  await requireRole("MANAGER");
-  if (!isWhatsAppEnabled()) {
-    return { status: "disabled", qr: null, me: null, lastError: null, enabled: false };
-  }
-  await wa.connect();
-  return { ...wa.getStatus(), enabled: true };
-}
-
-export async function disconnectWhatsApp(): Promise<WaStatus> {
-  await requireRole("MANAGER");
-  await wa.disconnect();
-  revalidatePath("/settings");
-  return { ...wa.getStatus(), enabled: isWhatsAppEnabled() };
-}
-
-export type SendCourseResult =
-  | { ok: true; to: string; at: string }
-  | {
-      ok: false;
-      reason: "disabled" | "not_connected" | "not_on_whatsapp" | "no_file" | "not_found" | "failed";
-      detail?: string;
-    };
+import { type CourseKind } from "@/lib/pdf/store";
+import { isWhatsAppEnabled, toInternational } from "@/lib/whatsapp";
+import { getSetting } from "@/lib/settings";
+import {
+  WA_HEARTBEAT_KEY,
+  WA_NUMBER_KEY,
+  WA_LINKED_AT_KEY,
+  WORKER_STALE_MS,
+} from "@/lib/whatsapp/worker-state";
 
 /**
- * Deliver a saved course to its member as a real PDF attachment.
- * The file was written to disk when the course was saved; it is re-rendered
- * here only if it went missing. Every attempt is written to the activity log
- * with the number it went to; a success is also stamped on the course.
+ * Sending happens on the gym computer, not here.
+ *
+ * A hosted serverless app cannot hold WhatsApp's socket open, so these
+ * actions only write to the outbox; the worker beside the gate bridge
+ * (`npm run whatsapp`) picks the row up, downloads the course PDF from its
+ * share link and sends it from the gym's number.
+ */
+
+export type WaStatus = {
+  /** Sending is switched on at all (WHATSAPP_ENABLED). */
+  enabled: boolean;
+  /** The worker reported in recently. */
+  online: boolean;
+  /** Paired number, digits only, or null when never linked. */
+  number: string | null;
+  linkedAt: string | null;
+  lastSeen: string | null;
+  pending: number;
+  failed: number;
+};
+
+/** What the Settings page shows about WhatsApp delivery. Manager only. */
+export async function getWhatsAppStatus(): Promise<WaStatus> {
+  await requireRole("MANAGER");
+
+  const [number, linkedAt, lastSeen, pending, failed] = await Promise.all([
+    getSetting(WA_NUMBER_KEY, ""),
+    getSetting(WA_LINKED_AT_KEY, ""),
+    getSetting(WA_HEARTBEAT_KEY, ""),
+    prisma.whatsAppOutbox.count({ where: { status: "PENDING" } }),
+    prisma.whatsAppOutbox.count({ where: { status: "FAILED" } }),
+  ]);
+
+  const seen = lastSeen ? Date.parse(lastSeen) : NaN;
+  return {
+    enabled: isWhatsAppEnabled(),
+    online: Number.isFinite(seen) && Date.now() - seen < WORKER_STALE_MS,
+    number: number || null,
+    linkedAt: linkedAt || null,
+    lastSeen: lastSeen || null,
+    pending,
+    failed,
+  };
+}
+
+export type QueueCourseResult =
+  | { ok: true; phone: string; alreadyQueued?: boolean }
+  | { ok: false; reason: "disabled" | "not_found" | "no_phone" };
+
+/**
+ * Put a saved course in the delivery queue. Returns as soon as it is queued —
+ * the worker may still be offline, which the Settings page reports.
  */
 export async function sendCourseToMember(
   kind: CourseKind,
   courseId: string
-): Promise<SendCourseResult> {
+): Promise<QueueCourseResult> {
   const user = await requireRole("CAPTAIN");
   if (!isWhatsAppEnabled()) return { ok: false, reason: "disabled" };
 
@@ -73,56 +87,56 @@ export async function sendCourseToMember(
         });
 
   if (!course?.member || !course.shareToken) return { ok: false, reason: "not_found" };
+  if (!course.member.phone) return { ok: false, reason: "no_phone" };
 
-  let pdf = await readCoursePdf(course.shareToken);
-  if (!pdf) {
-    const written = await saveCoursePdf({
+  const phone = toInternational(course.member.phone);
+
+  // Re-queueing the same course while one is still waiting would send it
+  // twice; the captain just sees it is already on its way.
+  const waiting = await prisma.whatsAppOutbox.findFirst({
+    where: { courseId: course.id, status: "PENDING" },
+    select: { id: true },
+  });
+  if (waiting) return { ok: true, phone, alreadyQueued: true };
+
+  await prisma.whatsAppOutbox.create({
+    data: {
       kind,
-      id: course.id,
+      courseId: course.id,
+      memberName: course.member.name,
+      phone,
       shareToken: course.shareToken,
-      locale: await getLocale(),
-      baseUrl: process.env.NEXT_PUBLIC_APP_URL || "",
-    });
-    if (written) pdf = await readCoursePdf(course.shareToken);
-  }
-  if (!pdf) return { ok: false, reason: "no_file" };
-
-  const base = process.env.NEXT_PUBLIC_APP_URL || "";
-  const caption = buildCourseMessage(
-    course.member.name,
-    kind,
-    base ? `${base}/p/${course.shareToken}` : ""
-  );
-
-  // After a restart the paired number is offline until something wakes it.
-  await wa.ensureConnected();
-
-  const to = toInternational(course.member.phone);
-  const res = await wa.sendDocument({
-    to,
-    data: pdf,
-    filename: coursePdfFilename(kind, course.member.name),
-    caption,
+      requestedById: user.id,
+    },
   });
 
-  const kindLabel = kind === "training" ? "تدريب" : "تغذية";
-  const outcome = res.sent ? "✓" : `✗ ${res.reason}${res.detail ? `: ${res.detail}` : ""}`;
   await logActivity({
     userId: user.id,
     action: "SEND_COURSE",
     targetType: kind === "training" ? "TrainingCourse" : "NutritionCourse",
     targetId: course.id,
-    details: `${course.member.name} • ${kindLabel} • +${to} • ${outcome}`,
+    details: `${course.member.name} • ${kind === "training" ? "تدريب" : "تغذية"} • +${phone} • queued`,
   });
 
-  if (!res.sent) return { ok: false, reason: res.reason, detail: res.detail };
+  revalidatePath("/training");
+  revalidatePath("/nutrition");
+  return { ok: true, phone };
+}
 
-  const at = new Date();
-  const stamp = { sentTo: to, sentAt: at };
-  if (kind === "training") {
-    await prisma.trainingCourse.update({ where: { id: course.id }, data: stamp });
-  } else {
-    await prisma.nutritionCourse.update({ where: { id: course.id }, data: stamp });
-  }
-  return { ok: true, to, at: at.toISOString() };
+/** Drop a failed delivery, or queue it again. Manager only. */
+export async function retryFailedSends(): Promise<{ retried: number }> {
+  await requireRole("MANAGER");
+  const { count } = await prisma.whatsAppOutbox.updateMany({
+    where: { status: "FAILED" },
+    data: { status: "PENDING", attempts: 0, lastError: null },
+  });
+  revalidatePath("/settings");
+  return { retried: count };
+}
+
+export async function clearFailedSends(): Promise<{ removed: number }> {
+  await requireRole("MANAGER");
+  const { count } = await prisma.whatsAppOutbox.deleteMany({ where: { status: "FAILED" } });
+  revalidatePath("/settings");
+  return { removed: count };
 }

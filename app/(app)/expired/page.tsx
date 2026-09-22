@@ -26,7 +26,7 @@ export default async function ExpiredPage({
   const where = {
     status: "EXPIRED" as const,
     ...(q
-      ? { member: { OR: [{ name: { contains: q } }, { phone: { contains: q } }] } }
+      ? { member: { OR: [{ name: { contains: q, mode: "insensitive" as const } }, { phone: { contains: q, mode: "insensitive" as const } }] } }
       : {}),
   };
   const current = pageFrom(page);

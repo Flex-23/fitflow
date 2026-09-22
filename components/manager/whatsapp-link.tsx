@@ -1,83 +1,59 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import Image from "next/image";
+import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
-import QRCode from "qrcode";
-import { Link2, Loader2, LogOut, RefreshCw, Smartphone, CheckCircle2, AlertTriangle } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  RefreshCw,
+  Send,
+  Trash2,
+  WifiOff,
+} from "lucide-react";
 import {
   getWhatsAppStatus,
-  connectWhatsApp,
-  disconnectWhatsApp,
+  retryFailedSends,
+  clearFailedSends,
   type WaStatus,
 } from "@/app/actions/whatsapp";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { formatDate } from "@/lib/i18n/format";
 import type { Dictionary } from "@/lib/i18n";
+import type { Locale } from "@/lib/i18n/config";
 
 /**
- * Pairs the gym's WhatsApp number with the server by showing a QR code, the
- * same way WhatsApp Web does. Once linked, course PDFs are delivered as real
- * attachments without anyone opening WhatsApp by hand.
+ * Delivery status for the gym's WhatsApp number.
+ *
+ * The number is paired on the gym computer by scanning a QR code the worker
+ * prints in its terminal, so there is nothing to click here — this reports
+ * whether that worker is running and what is waiting in the queue.
  */
-export function WhatsAppLink({ dict, initial }: { dict: Dictionary; initial: WaStatus }) {
+export function WhatsAppLink({
+  dict,
+  locale,
+  initial,
+}: {
+  dict: Dictionary;
+  locale: Locale;
+  initial: WaStatus;
+}) {
   const t = dict.manager;
   const [state, setState] = useState<WaStatus>(initial);
-  const [qrImage, setQrImage] = useState<{ qr: string; url: string } | null>(null);
   const [pending, start] = useTransition();
-  const polling = useRef(false);
 
-  // While pairing or connecting, keep asking the server what changed.
+  // The worker reports in every 30s; follow it while the page is open.
   useEffect(() => {
-    if (state.status !== "qr" && state.status !== "connecting") return;
-    if (polling.current) return;
-    polling.current = true;
-
     const id = setInterval(async () => {
-      const next = await getWhatsAppStatus();
-      setState(next);
-      if (next.status === "connected" || next.status === "disconnected") {
-        clearInterval(id);
-        polling.current = false;
-        if (next.status === "connected") toast.success(t.whatsappConnected);
+      try {
+        setState(await getWhatsAppStatus());
+      } catch {
+        // A failed poll is not worth a toast; the next one will tell.
       }
-    }, 2500);
-
-    return () => {
-      clearInterval(id);
-      polling.current = false;
-    };
-  }, [state.status, t.whatsappConnected]);
-
-  // Render the QR payload as an image. `qr` is the cache key, so a stale image
-  // is never shown for a newer payload without clearing state in the effect.
-  const qr = state.qr;
-  useEffect(() => {
-    if (!qr) return;
-    let cancelled = false;
-    QRCode.toDataURL(qr, { width: 260, margin: 1 })
-      .then((url) => {
-        if (!cancelled) setQrImage({ qr, url });
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [qr]);
-  const qrImageUrl = qr && qrImage?.qr === qr ? qrImage.url : null;
-
-  const connect = useCallback(() => {
-    start(async () => {
-      setState(await connectWhatsApp());
-    });
+    }, 15_000);
+    return () => clearInterval(id);
   }, []);
-
-  const unlink = useCallback(() => {
-    start(async () => {
-      setState(await disconnectWhatsApp());
-      toast.success(t.whatsappUnlinked);
-    });
-  }, [t.whatsappUnlinked]);
 
   if (!state.enabled) {
     return (
@@ -88,54 +64,88 @@ export function WhatsAppLink({ dict, initial }: { dict: Dictionary; initial: WaS
     );
   }
 
+  const refresh = () =>
+    start(async () => {
+      setState(await getWhatsAppStatus());
+    });
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <StatusPill status={state.status} me={state.me} dict={dict} />
-        <div className="flex items-center gap-2">
-          {state.status === "connected" ? (
-            <Button variant="soft-destructive" size="sm" onClick={unlink} disabled={pending}>
-              <LogOut className="size-4" />
-              {t.whatsappUnlink}
-            </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {state.number ? (
+            <Badge variant={state.online ? "success" : "warning"} className="gap-1">
+              {state.online ? <CheckCircle2 className="size-3" /> : <WifiOff className="size-3" />}
+              {state.online ? t.whatsappConnectedShort : t.whatsappWorkerOffline}
+            </Badge>
           ) : (
-            <Button variant="brand" size="sm" onClick={connect} disabled={pending}>
-              {pending ? <Loader2 className="size-4 animate-spin" /> : <Link2 className="size-4" />}
-              {state.status === "qr" ? t.whatsappRefreshQr : t.whatsappLink}
-            </Button>
+            <Badge variant="muted">{t.whatsappNotLinked}</Badge>
+          )}
+          {state.number && (
+            <span className="text-sm text-muted-foreground" dir="ltr">
+              +{state.number}
+            </span>
           )}
         </div>
+        <Button variant="outline" size="sm" onClick={refresh} disabled={pending}>
+          <RefreshCw className={pending ? "size-4 animate-spin" : "size-4"} />
+          {dict.common.search}
+        </Button>
       </div>
 
-      {state.status === "qr" && (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-brand/30 bg-brand/5 p-4 sm:flex-row sm:items-start">
-          <div className="grid size-[260px] shrink-0 place-items-center rounded-lg bg-white p-2">
-            {qrImageUrl ? (
-              <Image src={qrImageUrl} alt="WhatsApp QR" width={244} height={244} unoptimized />
-            ) : (
-              <Loader2 className="size-6 animate-spin text-muted-foreground" />
-            )}
-          </div>
-          <ol className="space-y-2 text-sm">
-            <li className="flex items-start gap-2">
-              <Smartphone className="mt-0.5 size-4 shrink-0 text-brand" />
-              {t.whatsappStep1}
-            </li>
-            <li className="flex items-start gap-2">
-              <Link2 className="mt-0.5 size-4 shrink-0 text-brand" />
-              {t.whatsappStep2}
-            </li>
-            <li className="flex items-start gap-2">
-              <RefreshCw className="mt-0.5 size-4 shrink-0 text-brand" />
-              {t.whatsappStep3}
-            </li>
-          </ol>
+      <div className="grid gap-2 text-sm sm:grid-cols-3">
+        <Tile label={t.whatsappQueued} value={String(state.pending)} icon={Clock} />
+        <Tile
+          label={t.whatsappFailed}
+          value={String(state.failed)}
+          icon={AlertTriangle}
+          tone={state.failed > 0 ? "destructive" : undefined}
+        />
+        <Tile
+          label={t.whatsappLastSeen}
+          value={state.lastSeen ? formatDate(state.lastSeen, locale) : "—"}
+          icon={Send}
+        />
+      </div>
+
+      {state.failed > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="soft-brand"
+            size="sm"
+            disabled={pending}
+            onClick={() =>
+              start(async () => {
+                const { retried } = await retryFailedSends();
+                toast.success(t.whatsappRetried.replace("{n}", String(retried)));
+                setState(await getWhatsAppStatus());
+              })
+            }
+          >
+            <RefreshCw className="size-4" />
+            {t.whatsappRetry}
+          </Button>
+          <Button
+            variant="soft-destructive"
+            size="sm"
+            disabled={pending}
+            onClick={() =>
+              start(async () => {
+                await clearFailedSends();
+                setState(await getWhatsAppStatus());
+              })
+            }
+          >
+            <Trash2 className="size-4" />
+            {t.whatsappClearFailed}
+          </Button>
         </div>
       )}
 
-      {state.lastError && state.status !== "connected" && (
-        <p className="text-xs text-muted-foreground">
-          {t.whatsappLastError}: <span dir="ltr">{state.lastError}</span>
+      {!state.online && (
+        <p className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-xs">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
+          {state.number ? t.whatsappWorkerOfflineHelp : t.whatsappPairHelp}
         </p>
       )}
 
@@ -147,37 +157,30 @@ export function WhatsAppLink({ dict, initial }: { dict: Dictionary; initial: WaS
   );
 }
 
-function StatusPill({
-  status,
-  me,
-  dict,
+function Tile({
+  label,
+  value,
+  icon: Icon,
+  tone,
 }: {
-  status: WaStatus["status"];
-  me: string | null;
-  dict: Dictionary;
+  label: string;
+  value: string;
+  icon: React.ComponentType<{ className?: string }>;
+  tone?: "destructive";
 }) {
-  const t = dict.manager;
-  if (status === "connected") {
-    return (
-      <span className="flex items-center gap-2">
-        <Badge variant="success" className="gap-1">
-          <CheckCircle2 className="size-3" />
-          {t.whatsappConnectedShort}
-        </Badge>
-        {me && (
-          <span className="text-sm text-muted-foreground" dir="ltr">
-            +{me}
-          </span>
-        )}
-      </span>
-    );
-  }
-  const map = {
-    qr: { variant: "warning" as const, label: t.whatsappWaitingScan },
-    connecting: { variant: "secondary" as const, label: t.whatsappConnecting },
-    disconnected: { variant: "muted" as const, label: t.whatsappNotLinked },
-    disabled: { variant: "muted" as const, label: t.whatsappDisabled },
-  };
-  const m = map[status];
-  return <Badge variant={m.variant}>{m.label}</Badge>;
+  return (
+    <div className="rounded-lg bg-muted/50 px-3 py-2">
+      <p className="flex items-center gap-1 text-xs text-muted-foreground">
+        <Icon className="size-3" />
+        {label}
+      </p>
+      <p
+        className={
+          tone === "destructive" ? "font-semibold text-destructive" : "font-semibold"
+        }
+      >
+        {value}
+      </p>
+    </div>
+  );
 }

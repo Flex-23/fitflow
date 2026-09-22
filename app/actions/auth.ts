@@ -48,7 +48,7 @@ export async function login(
   const ip = await clientKey();
   const keys = [`login:ip:${ip}`, `login:user:${username.toLowerCase()}`];
 
-  const locked = Math.max(...keys.map(lockedFor));
+  const locked = Math.max(...(await Promise.all(keys.map(lockedFor))));
   if (locked > 0) {
     return { error: "locked", lockedMinutes: Math.ceil(locked / 60_000) };
   }
@@ -59,23 +59,27 @@ export async function login(
   const ok = await verifyPassword(password, user?.hashedPassword ?? DUMMY_HASH);
 
   if (!user || !ok) {
-    const lockMs = Math.max(...keys.map((k) => recordFailure(k, LOGIN_RULE)));
+    const lockMs = Math.max(
+      ...(await Promise.all(keys.map((k) => recordFailure(k, LOGIN_RULE))))
+    );
     if (lockMs > 0) {
       return { error: "locked", lockedMinutes: Math.ceil(lockMs / 60_000) };
     }
     return {
       error: "invalid_credentials",
-      attemptsLeft: Math.min(...keys.map((k) => attemptsLeft(k, LOGIN_RULE))),
+      attemptsLeft: Math.min(
+        ...(await Promise.all(keys.map((k) => attemptsLeft(k, LOGIN_RULE))))
+      ),
     };
   }
 
   if (!user.isActive) {
     // A disabled account still counts as a failed attempt.
-    recordFailure(keys[0], LOGIN_RULE);
+    await recordFailure(keys[0], LOGIN_RULE);
     return { error: "disabled" };
   }
 
-  keys.forEach(clearFailures);
+  await Promise.all(keys.map(clearFailures));
 
   await createSession({
     userId: user.id,
