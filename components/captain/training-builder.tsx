@@ -232,21 +232,38 @@ export function TrainingBuilder({
         toast.error(dict.common.somethingWrong);
         return;
       }
-      setSaved({ id: res.id, shareToken: res.shareToken ?? null });
+      const delivery = { id: res.id, shareToken: res.shareToken ?? null };
       toast.success(t.saved);
 
       const ctx = await getMemberTraining(member.id);
       if (ctx) setPrevious(ctx.courses);
 
       if (!whatsappEnabled) {
+        // With no automatic delivery the panel is the only way to hand the
+        // course over, so show it and leave the course on screen.
+        setSaved(delivery);
         toast.info(t.whatsappStub);
         return;
       }
+
       const sendId = toast.loading(t.sending);
       const sent = await sendCourseToMember("training", res.id);
       toast.dismiss(sendId);
       reportSend(sent, member.name, dict);
+
+      // On the way out there is nothing left to do with this course, so the
+      // board is cleared for the next one and the panel never appears. It
+      // only shows after a failure, which is where the retry button lives.
+      if (sent.ok) resetBuilder();
+      else setSaved(delivery);
     });
+  }
+
+  /** Empty the grid and put the delivery panel away. */
+  function resetBuilder() {
+    setDays(emptyDays());
+    setActiveDay(0);
+    setSaved(null);
   }
 
   function saveAsTemplate(title: string) {
