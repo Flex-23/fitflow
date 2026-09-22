@@ -133,18 +133,21 @@ makes queue behind each other and time out. 5 is a sane default for both.
 
 Run this on the gym computer whenever the turnstile misbehaves:
 
-
+```bash
+npm run gate:check            # checks everything, opens nothing
+npm run gate:check -- --open  # also pulses the relay — the gate will turn
+```
 
 It walks the same path a card tap takes and times each side separately, so a
 slow or dead gate can be blamed on the right half: the panel on the local
 network, or the database across the internet.
 
 **The panel must be on the same subnet as the computer.** It holds a fixed
-address (factory default ). Plugged straight into the
-computer, give that port a static . Plugged into the gym
-router instead, either the router hands out  or the panel needs
-its address changed to match — otherwise nothing can reach it, however
-healthy it is.
+address (factory default `192.168.1.201/24`). Plugged straight into the
+computer, give that port a static `192.168.1.50/24`. Plugged into the gym
+router instead, either the router hands out `192.168.1.x` addresses or the
+panel needs its own changed to match — otherwise nothing can reach it,
+however healthy it is.
 
 ## Operational notes
 
