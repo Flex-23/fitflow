@@ -52,7 +52,7 @@ pairing credentials. Neither survives that model.
    ~90 ms and Tokyo in ~400 ms.
 2. Project settings → Database → copy the **transaction pooler** URI (port
    6543) into `DATABASE_URL`, and the **session pooler** URI (port 5432) into
-   `DIRECT_URL`. Append `?pgbouncer=true&connection_limit=1` to the first.
+   `DIRECT_URL`. Append `?pgbouncer=true&connection_limit=5` to the first.
 3. Create two **private** buckets: `videos` (50 MB per-object limit on the free
    plan) and `backups`.
 4. Apply the schema from a machine that has the repo:
@@ -84,6 +84,12 @@ or move the files into the `videos` bucket under the same names.
    automatically, on purpose — a deploy should never alter the database on its
    own. Run `npx prisma migrate deploy` yourself when the schema changes.
 
+`vercel.json` pins the functions to `fra1` (Frankfurt) so they sit beside the
+database. This matters more than it looks: a page runs several queries, and if
+the function is in Vercel's default US region while Supabase is in Europe,
+*each* query pays a transatlantic round trip. Keep the two regions together —
+if the Supabase project ever moves, change `regions` to match.
+
 ### 4. The gym computer
 
 Copy the repo there, `npm install`, and create a `.env` with `DATABASE_URL`,
@@ -104,9 +110,15 @@ dead — see the offline note below.
 `DATABASE_URL` (transaction pooler, 6543) and `DIRECT_URL` (session mode,
 5432) are not interchangeable, and the split is not only about migrations.
 
-Measured against a Supabase project one continent away, the same `SELECT 1`
-cost **~1.5 s through the pooler** and **~0.45 s direct** — transaction mode
-adds round trips, and distance multiplies each one.
+Measured from Iraq, the same `SELECT 1`:
+
+| | Tokyo (`ap-northeast-1`) | Frankfurt (`eu-central-1`) |
+|---|---|---|
+| pooler (6543) | ~1 500 ms | ~430 ms |
+| direct (5432) | ~450 ms | **~95 ms** |
+| full gate decision | ~310 ms | **~95 ms** |
+
+Transaction mode adds round trips, and distance multiplies each one.
 
 - The **hosted app** must use the pooler. Many short-lived serverless
   instances would otherwise exhaust Postgres' direct connection slots.
@@ -120,8 +132,8 @@ makes queue behind each other and time out. 5 is a sane default for both.
 ## Operational notes
 
 - **Gate latency.** Each tap now costs one round trip to Supabase instead of a
-  local query. Measured end to end: ~310 ms to Tokyo over the direct
-  connection, and proportionally less from a nearer region.
+  local query. Measured end to end from Iraq: ~95 ms to Frankfurt over the
+  direct connection.
 - **Gate offline behaviour.** Today the panel holds no cards, so if the gym
   computer or the internet is down, nobody gets in. `docs/gate-hybrid-mode.md`
   specifies pushing active cards into the panel's own memory so it keeps
