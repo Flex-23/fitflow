@@ -45,7 +45,13 @@ if (!isWhatsAppEnabled()) {
   process.exit(0);
 }
 if (!APP_URL) {
-  console.error("NEXT_PUBLIC_APP_URL is not set — the worker needs it to fetch course PDFs.");
+  // No Vercel fallback here: this runs on the gym computer, so the public
+  // address has to be stated explicitly.
+  console.error(
+    "NEXT_PUBLIC_APP_URL is not set — the worker needs the site's public address\n" +
+      "to download course PDFs. Add it to .env, e.g.\n" +
+      '  NEXT_PUBLIC_APP_URL="https://your-site.vercel.app"'
+  );
   process.exit(1);
 }
 

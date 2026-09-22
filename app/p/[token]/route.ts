@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { renderTrainingPdf, renderNutritionPdf, pdfResponse } from "@/lib/pdf/render-course";
+import { appUrl } from "@/lib/app-url";
 
 /**
  * Public course PDF, reached through the private share link a captain sends
@@ -12,7 +13,7 @@ import { renderTrainingPdf, renderNutritionPdf, pdfResponse } from "@/lib/pdf/re
  * stands and disappears with it.
  */
 export async function GET(
-  req: Request,
+  _req: Request,
   { params }: { params: Promise<{ token: string }> }
 ) {
   const { token } = await params;
@@ -31,7 +32,7 @@ export async function GET(
   if (!training && !nutrition) return new Response("Not found", { status: 404 });
 
   const locale = await getLocale();
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin;
+  const baseUrl = appUrl();
 
   const bytes = training
     ? await renderTrainingPdf(training.id, locale, baseUrl)

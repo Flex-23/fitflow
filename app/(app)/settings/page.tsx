@@ -7,6 +7,7 @@ import { getExpiringSoonThreshold, getSetting } from "@/lib/settings";
 import { isWhatsAppEnabled, countryCode } from "@/lib/whatsapp";
 import { WA_NUMBER_KEY, WA_LINKED_AT_KEY } from "@/lib/whatsapp/worker-state";
 import { formatDate } from "@/lib/i18n/format";
+import { appUrl as resolveAppUrl, isLocalUrl } from "@/lib/app-url";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,8 +25,8 @@ export default async function SettingsPage() {
   const t = dict.manager;
   const threshold = await getExpiringSoonThreshold();
   const whatsapp = isWhatsAppEnabled();
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
-  const publicUrl = !/localhost|127\.0\.0\.1/.test(appUrl);
+  const appUrl = resolveAppUrl();
+  const publicUrl = !isLocalUrl(appUrl);
   // The paired number is remembered in the database, so it shows even while
   // the socket is still coming back up after a restart.
   const [linkedNumber, linkedAt] = await Promise.all([

@@ -1,10 +1,11 @@
 import { getCurrentUser } from "@/lib/auth/dal";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { renderTrainingPdf, pdfResponse } from "@/lib/pdf/render-course";
+import { appUrl } from "@/lib/app-url";
 
 /** Staff preview of a training course PDF. Members use /p/{shareToken}. */
 export async function GET(
-  req: Request,
+  _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const user = await getCurrentUser();
@@ -14,7 +15,7 @@ export async function GET(
 
   const { id } = await params;
   const locale = await getLocale();
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin;
+  const baseUrl = appUrl();
 
   const bytes = await renderTrainingPdf(id, locale, baseUrl);
   if (!bytes) return new Response("Not found", { status: 404 });
