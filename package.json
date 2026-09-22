@@ -17,7 +17,8 @@
     "gate": "tsx --env-file=.env scripts/gate-bridge.ts",
     "whatsapp": "tsx --env-file=.env scripts/whatsapp-worker.ts",
     "migrate-mysql": "tsx --env-file=.env scripts/migrate-mysql-to-postgres.ts",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "gate:check": "tsx --env-file=.env scripts/gate-check.ts"
   },
   "prisma": {
     "seed": "tsx --env-file=.env prisma/seed.ts"

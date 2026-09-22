@@ -129,6 +129,23 @@ Transaction mode adds round trips, and distance multiplies each one.
 `connection_limit` also matters: at 1, the parallel queries a single page
 makes queue behind each other and time out. 5 is a sane default for both.
 
+## Checking the gate
+
+Run this on the gym computer whenever the turnstile misbehaves:
+
+
+
+It walks the same path a card tap takes and times each side separately, so a
+slow or dead gate can be blamed on the right half: the panel on the local
+network, or the database across the internet.
+
+**The panel must be on the same subnet as the computer.** It holds a fixed
+address (factory default ). Plugged straight into the
+computer, give that port a static . Plugged into the gym
+router instead, either the router hands out  or the panel needs
+its address changed to match — otherwise nothing can reach it, however
+healthy it is.
+
 ## Operational notes
 
 - **Gate latency.** Each tap now costs one round trip to Supabase instead of a
