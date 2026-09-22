@@ -12,7 +12,7 @@
  *
  * Pair the number once by scanning the QR code this prints on first run.
  */
-import { PrismaClient } from "@prisma/client";
+import { workerPrisma } from "../lib/worker-db";
 import QRCode from "qrcode";
 import * as wa from "../lib/whatsapp/client";
 import { coursePdfFilename, type CourseKind } from "../lib/pdf/store";
@@ -30,7 +30,7 @@ const MAX_ATTEMPTS = 3;
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/+$/, "");
 
-const prisma = new PrismaClient();
+const prisma = workerPrisma();
 const stamp = () => new Date().toLocaleTimeString("en-GB");
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 

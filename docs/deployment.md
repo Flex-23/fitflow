@@ -99,10 +99,29 @@ Both reconnect on their own and are safe to restart. For unattended running,
 start them at login (Task Scheduler) so a power cut does not leave the gate
 dead — see the offline note below.
 
+## Two connection strings, on purpose
+
+`DATABASE_URL` (transaction pooler, 6543) and `DIRECT_URL` (session mode,
+5432) are not interchangeable, and the split is not only about migrations.
+
+Measured against a Supabase project one continent away, the same `SELECT 1`
+cost **~1.5 s through the pooler** and **~0.45 s direct** — transaction mode
+adds round trips, and distance multiplies each one.
+
+- The **hosted app** must use the pooler. Many short-lived serverless
+  instances would otherwise exhaust Postgres' direct connection slots.
+- The **gym workers** use `DIRECT_URL` (`lib/worker-db.ts`). They are two
+  long-lived processes, so they cannot exhaust anything, and the gate spends
+  one query per card tap where the saving is felt.
+
+`connection_limit` also matters: at 1, the parallel queries a single page
+makes queue behind each other and time out. 5 is a sane default for both.
+
 ## Operational notes
 
 - **Gate latency.** Each tap now costs one round trip to Supabase instead of a
-  local query. In the right region that is roughly 100–150 ms end to end.
+  local query. Measured end to end: ~310 ms to Tokyo over the direct
+  connection, and proportionally less from a nearer region.
 - **Gate offline behaviour.** Today the panel holds no cards, so if the gym
   computer or the internet is down, nobody gets in. `docs/gate-hybrid-mode.md`
   specifies pushing active cards into the panel's own memory so it keeps

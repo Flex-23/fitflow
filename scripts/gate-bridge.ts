@@ -14,7 +14,7 @@
  *
  * Configuration comes from .env (see .env.example, "Gate" section).
  */
-import { PrismaClient } from "@prisma/client";
+import { workerPrisma } from "../lib/worker-db";
 import { C3Panel, CARD_EVENTS } from "../lib/gate/c3";
 import { decideEntry } from "../lib/gate/decide";
 
@@ -27,7 +27,7 @@ const POLL_MS = Math.max(100, Number(process.env.GATE_POLL_MS || 300));
 // Same-card debounce on top of the panel's own "too short interval" filter.
 const DEBOUNCE_MS = 3000;
 
-const prisma = new PrismaClient();
+const prisma = workerPrisma();
 const stamp = () => new Date().toLocaleTimeString("en-GB");
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
