@@ -79,9 +79,42 @@ function accountError(err: string | undefined, dict: Dictionary): string {
       return t.selfLockout;
     case "last_manager":
       return t.lastManager;
+    case "invalid":
+      // The field messages below say exactly which value is wrong; this only
+      // has to send the manager's eyes back to the form.
+      return t.checkTheFields;
     default:
       return dict.common.somethingWrong;
   }
+}
+
+/**
+ * Turn a rejected field into advice. "Invalid value" is useless for rules a
+ * person cannot guess — above all that a username may not be written in
+ * Arabic, which is the natural thing to try first.
+ */
+function fieldHint(field: string, dict: Dictionary): string {
+  const t = dict.manager;
+  switch (field) {
+    case "username":
+      return t.usernameRule;
+    case "password":
+      return t.passwordRule;
+    case "displayName":
+      return t.displayNameRule;
+    default:
+      return dict.reception.invalidField;
+  }
+}
+
+/** Reads the field errors an action sent back. */
+function fieldErrors(state: ActionState, dict: Dictionary) {
+  return (field: string) =>
+    state.fieldErrors?.[field] ? fieldHint(field, dict) : null;
+}
+
+function FieldError({ message }: { message: string | null }) {
+  return message ? <p className="text-xs text-destructive">{message}</p> : null;
 }
 
 export function AccountsManager({
@@ -357,21 +390,47 @@ function CreateForm({ dict, onDone }: { dict: Dictionary; onDone: () => void }) 
   const [state, action, pending] = useActionState(createAccount, emptyState);
   const [role, setRole] = useState<Role | "">("");
   useAccountFeedback(state, dict, onDone);
+  const err = fieldErrors(state, dict);
 
   return (
     <form action={action} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="displayName">{t.displayName}</Label>
-        <Input id="displayName" name="displayName" required autoFocus />
+        <Input id="displayName" name="displayName" required minLength={2} maxLength={60} autoFocus />
+        <FieldError message={err("displayName")} />
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="username">{dict.auth.username}</Label>
-          <Input id="username" name="username" dir="ltr" required autoComplete="off" />
+          {/* The pattern gives the browser a chance to say no before the
+              round trip; the server enforces the same rule regardless. */}
+          <Input
+            id="username"
+            name="username"
+            dir="ltr"
+            required
+            minLength={3}
+            maxLength={40}
+            pattern="[A-Za-z0-9_.\-]+"
+            autoComplete="off"
+            className="text-start"
+          />
+          <p className="text-xs text-muted-foreground">{t.usernameRule}</p>
+          <FieldError message={err("username")} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="password">{dict.auth.password}</Label>
-          <Input id="password" name="password" type="password" required autoComplete="new-password" />
+          <Input
+            id="password"
+            name="password"
+            type="password"
+            required
+            minLength={6}
+            maxLength={100}
+            autoComplete="new-password"
+          />
+          <p className="text-xs text-muted-foreground">{t.passwordRule}</p>
+          <FieldError message={err("password")} />
         </div>
       </div>
       <div className="space-y-2">
@@ -404,13 +463,22 @@ function EditForm({
   const [state, action, pending] = useActionState(updateAccount, emptyState);
   const [role, setRole] = useState<Role>(account.role);
   useAccountFeedback(state, dict, onDone);
+  const err = fieldErrors(state, dict);
 
   return (
     <form action={action} className="space-y-4">
       <input type="hidden" name="id" value={account.id} />
       <div className="space-y-2">
         <Label htmlFor="displayName">{t.displayName}</Label>
-        <Input id="displayName" name="displayName" defaultValue={account.displayName} required />
+        <Input
+          id="displayName"
+          name="displayName"
+          defaultValue={account.displayName}
+          required
+          minLength={2}
+          maxLength={60}
+        />
+        <FieldError message={err("displayName")} />
       </div>
       <div className="space-y-2">
         <Label htmlFor="role">{t.role}</Label>
@@ -452,6 +520,7 @@ function ResetForm({
   const t = dict.manager;
   const [state, action, pending] = useActionState(resetPassword, emptyState);
   useAccountFeedback(state, dict, onDone);
+  const err = fieldErrors(state, dict);
 
   return (
     <form action={action} className="space-y-4">
@@ -459,7 +528,18 @@ function ResetForm({
       <p className="rounded-lg bg-muted/50 p-3 text-sm font-medium">{account.displayName}</p>
       <div className="space-y-2">
         <Label htmlFor="password">{t.newPassword}</Label>
-        <Input id="password" name="password" type="password" required autoComplete="new-password" autoFocus />
+        <Input
+          id="password"
+          name="password"
+          type="password"
+          required
+          minLength={6}
+          maxLength={100}
+          autoComplete="new-password"
+          autoFocus
+        />
+        <p className="text-xs text-muted-foreground">{t.passwordRule}</p>
+        <FieldError message={err("password")} />
       </div>
       <div className="flex justify-end gap-2 pt-1">
         <Button type="button" variant="ghost" onClick={onDone}>
