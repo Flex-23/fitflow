@@ -36,7 +36,21 @@ if (process.env.GATE_ENABLED !== "true") {
   process.exit(0);
 }
 
+/**
+ * Reconnect with a growing delay.
+ *
+ * The panel accepts a single client and, after dropping one, refuses new
+ * connections for a spell while it frees the slot. Hammering it every couple
+ * of seconds keeps it busy refusing and floods the log; backing off lets it
+ * recover and makes the log readable. Capped so a gate that comes back is
+ * picked up quickly.
+ */
+const RETRY_START_MS = 1_000;
+const RETRY_MAX_MS = 15_000;
+
 async function connectPanel(): Promise<C3Panel> {
+  let delay = RETRY_START_MS;
+  let attempt = 0;
   for (;;) {
     const panel = new C3Panel(HOST, PORT, PASSWORD);
     panel.onClose = (reason) => console.log(`[${stamp()}] panel link lost: ${reason}`);
@@ -44,13 +58,22 @@ async function connectPanel(): Promise<C3Panel> {
       await panel.connect();
       const p = await panel.getParams(["~DeviceName", "~SerialNumber", "LockCount"]);
       console.log(
-        `[${stamp()}] panel connected: ${p["~DeviceName"] ?? "?"} SN ${p["~SerialNumber"] ?? "?"} (${p.LockCount ?? "?"} doors) at ${HOST}:${PORT}`
+        `[${stamp()}] panel connected: ${p["~DeviceName"] ?? "?"} SN ${p["~SerialNumber"] ?? "?"} (${p.LockCount ?? "?"} doors) at ${HOST}:${PORT}` +
+          (attempt ? `  (after ${attempt} failed attempt${attempt > 1 ? "s" : ""})` : "")
       );
       return panel;
     } catch (e) {
-      console.log(`[${stamp()}] panel connect failed: ${(e as Error).message} — retrying in 2s`);
+      attempt++;
+      // Only the first failure and every tenth after it are worth a line;
+      // the rest are the same message repeating while the panel is away.
+      if (attempt === 1 || attempt % 10 === 0) {
+        console.log(
+          `[${stamp()}] panel unreachable (attempt ${attempt}): ${(e as Error).message} — retrying every ${Math.round(delay / 1000)}s`
+        );
+      }
       await panel.close();
-      await sleep(2000);
+      await sleep(delay);
+      delay = Math.min(delay * 2, RETRY_MAX_MS);
     }
   }
 }
