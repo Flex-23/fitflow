@@ -330,8 +330,39 @@ see `deployment.md`.
 ```bash
 npm run gate:check            # prove the whole chain, open nothing
 npm run gate:check -- --open  # also pulse the relay — the gate will turn
-npm run gate                  # the real thing
+npm run gate                  # run it in this terminal (dies with the window)
 ```
+
+### Starting with Windows
+
+On the gym computer the bridge runs as a scheduled task so the turnstile is
+never waiting on a person. From an **Administrator** PowerShell in the project
+folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\install-worker-task.ps1 -Worker gate
+powershell -ExecutionPolicy Bypass -File scripts\install-worker-task.ps1 -Worker gate -Uninstall
+```
+
+This registers `\FitFlow\FitFlow gate`:
+
+- **Trigger:** at boot, 30 seconds late so the network is up first.
+- **Account:** `SYSTEM`. It therefore runs **before anyone logs into Windows**,
+  which is the point — members are admitted whether or not reception or the
+  manager has signed in, or opened the website at all. The bridge only needs
+  the panel and the database; the app is not in the path of a card tap.
+- **Supervision:** `scripts/run-worker.ps1` restarts the worker 10 seconds
+  after any exit and rotates its log at 5 MB, keeping one previous file.
+- **Log:** `storage/logs/gate.log`, UTF-8 so Arabic member names stay readable.
+
+Check it:
+
+```powershell
+Get-ScheduledTask -TaskPath "\FitFlow\"                 # State should be Running
+Get-Content storage\logs\gate.log -Tail 20 -Encoding UTF8
+```
+
+The same script installs the WhatsApp worker with `-Worker whatsapp`.
 
 A healthy self-test:
 
@@ -350,7 +381,7 @@ Panel at 192.168.1.201:4370
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| Nothing happens on a tap | **the bridge is not running** — by far the most common | `npm run gate` |
+| Nothing happens on a tap | **the bridge is not running** — by far the most common | check the task is `Running`, or `npm run gate` |
 | `panel unreachable`, ping also fails, link `Disconnected` | power or cable | separate supply for the motor; reseat the RJ45 |
 | Ping works, port 4370 refuses | another client holds the single slot, **or** the panel is recovering from a drop | close ZKAccess and any second bridge; otherwise wait — the backoff handles it |
 | Ping works, nothing else does | computer and panel on different subnets | §3 |
@@ -387,10 +418,11 @@ made by the hosted database.
    [`gate-hybrid-mode.md`](gate-hybrid-mode.md) specifies pushing active cards
    into the panel's own memory with their expiry dates, so it keeps working
    offline while the bridge keeps logging. That is the next step.
-2. **The bridge is not yet a service.** It must be started by hand and dies
-   with its terminal. It needs to start with Windows.
-3. **Only one reader works** (door 2, entry). Exit is uncontrolled until the
+2. **Only one reader works** (door 2, entry). Exit is uncontrolled until the
    door-1 reader is repaired.
-4. **No anti-passback** — one card can be passed back and used again.
-5. **The panel clock drifts** and is not corrected. It does not matter today,
+3. **No anti-passback** — one card can be passed back and used again.
+4. **The panel clock drifts** and is not corrected. It does not matter today,
    because timestamps come from the database, but hybrid mode will need it.
+5. **The panel drops its connection from time to time** (see §9). The bridge
+   rides it out and no tap is lost, but the root cause is likely the 12 V
+   supply shared with the turnstile motor and deserves an electrician.
