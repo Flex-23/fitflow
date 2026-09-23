@@ -6,7 +6,7 @@ import { roleHome } from "@/lib/auth/rbac";
 // (cookie only, no DB) — the secure checks live in the Data Access Layer.
 // Everything is protected except the public surfaces below.
 // "/p" serves course PDFs through a private share token (sent over WhatsApp).
-const PUBLIC_PREFIXES = ["/login", "/watch", "/member", "/p"];
+const PUBLIC_PREFIXES = ["/login", "/watch", "/p"];
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;

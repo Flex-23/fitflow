@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
+import Image from "next/image";
+import { cookies } from "next/headers";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
-import { Brand } from "@/components/brand";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LoginForm } from "@/components/auth/login-form";
-import { cookies } from "next/headers";
 import { THEME_COOKIE, defaultTheme, isTheme } from "@/lib/theme";
 
 export const metadata: Metadata = { title: "Sign in" };
@@ -24,71 +24,67 @@ export default async function LoginPage({
   const theme = isTheme(themeCookie) ? themeCookie : defaultTheme;
 
   return (
-    <div className="grid min-h-dvh lg:grid-cols-2">
-      {/* Brand / marketing panel */}
-      <div className="relative hidden overflow-hidden bg-gradient-to-br from-secondary to-background lg:flex lg:flex-col lg:justify-between p-12">
-        <div className="bg-grid absolute inset-0 opacity-40" />
-        <div
-          className="absolute -top-24 -end-24 size-96 rounded-full blur-3xl"
-          style={{ background: "radial-gradient(circle, var(--brand), transparent 70%)", opacity: 0.25 }}
+    <div className="relative flex min-h-dvh flex-col overflow-hidden">
+      {/* ── Watermark ──
+          The brand mark fills the screen behind everything, faded far enough
+          that the form on top stays the thing you read. aria-hidden and
+          pointer-events-none so it is scenery, never content.
+
+          The artwork is a dark-background JPG, which needs handling per theme:
+          on dark, `screen` blending drops its near-black backdrop away and
+          leaves only the green mark glowing; on light that trick would erase
+          it, so it simply sits at a very low opacity. The radial mask fades
+          all four edges, otherwise the letterboxed image reads as a rectangle
+          pasted on the page. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 select-none">
+        <Image
+          src="/fitflow-logo.jpg"
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-contain opacity-[0.07] [mask-image:radial-gradient(ellipse_at_center,black_35%,transparent_72%)] dark:opacity-100 dark:mix-blend-screen"
         />
-        <div className="relative">
-          <Brand size="lg" />
-        </div>
-        <div className="relative space-y-4">
-          <h1 className="text-4xl font-bold leading-tight tracking-tight">
-            {dict.landing.heroTitle}
-          </h1>
-          <p className="max-w-md text-lg text-muted-foreground">
-            {dict.landing.heroSubtitle}
+      </div>
+
+      <header className="relative z-10 flex items-center justify-end gap-2 p-6">
+        <ThemeToggle
+          current={theme}
+          labels={{ light: dict.common.lightMode, dark: dict.common.darkMode }}
+        />
+        <LanguageSwitcher current={locale} />
+      </header>
+
+      <main className="relative z-10 flex flex-1 items-center justify-center px-6 pb-16">
+        <div className="w-full max-w-sm">
+          <div className="rounded-2xl border border-border/60 bg-card/70 p-7 shadow-2xl backdrop-blur-xl sm:p-8">
+            <div className="mb-7 space-y-1.5 text-center">
+              <h1 className="text-2xl font-bold tracking-tight">{dict.auth.welcomeBack}</h1>
+              <p className="text-sm text-muted-foreground">{dict.auth.signInSubtitle}</p>
+            </div>
+
+            <LoginForm
+              next={safeNext}
+              labels={{
+                username: dict.auth.username,
+                password: dict.auth.password,
+                usernamePlaceholder: dict.auth.usernamePlaceholder,
+                passwordPlaceholder: dict.auth.passwordPlaceholder,
+                signIn: dict.auth.signIn,
+                signingIn: dict.auth.signingIn,
+                invalidCredentials: dict.auth.invalidCredentials,
+                accountDisabled: dict.auth.accountDisabled,
+                tooManyAttempts: dict.auth.tooManyAttempts,
+                attemptsLeft: dict.auth.attemptsLeft,
+              }}
+            />
+          </div>
+
+          <p className="mt-6 text-center text-xs text-muted-foreground">
+            © {new Date().getFullYear()} FitFlow
           </p>
         </div>
-        <div className="relative text-sm text-muted-foreground">
-          © {new Date().getFullYear()} FitFlow
-        </div>
-      </div>
-
-      {/* Form panel */}
-      <div className="relative flex flex-col items-center justify-center p-6 sm:p-12">
-        <div className="absolute end-6 top-6 flex items-center gap-2">
-          <ThemeToggle
-            current={theme}
-            labels={{ light: dict.common.lightMode, dark: dict.common.darkMode }}
-          />
-          <LanguageSwitcher current={locale} />
-        </div>
-
-        <div className="w-full max-w-sm space-y-8">
-          <div className="space-y-2 text-center lg:hidden">
-            <Brand size="lg" className="justify-center" />
-          </div>
-
-          <div className="space-y-2">
-            <h2 className="text-2xl font-bold tracking-tight">
-              {dict.auth.welcomeBack}
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {dict.auth.signInSubtitle}
-            </p>
-          </div>
-
-          <LoginForm
-            next={safeNext}
-            labels={{
-              username: dict.auth.username,
-              password: dict.auth.password,
-              usernamePlaceholder: dict.auth.usernamePlaceholder,
-              passwordPlaceholder: dict.auth.passwordPlaceholder,
-              signIn: dict.auth.signIn,
-              signingIn: dict.auth.signingIn,
-              invalidCredentials: dict.auth.invalidCredentials,
-              accountDisabled: dict.auth.accountDisabled,
-              tooManyAttempts: dict.auth.tooManyAttempts,
-              attemptsLeft: dict.auth.attemptsLeft,
-            }}
-          />
-        </div>
-      </div>
+      </main>
     </div>
   );
 }

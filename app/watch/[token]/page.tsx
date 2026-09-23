@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { VideoOff } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getLocale } from "@/lib/i18n/get-locale";
@@ -57,9 +56,8 @@ export default async function WatchPage({
             </div>
             <p className="font-semibold">{dict.watch.notFound}</p>
             <p className="text-sm text-muted-foreground">{dict.watch.notFoundDesc}</p>
-            <Link href="/" className="text-sm font-medium text-brand underline">
-              {dict.watch.backHome}
-            </Link>
+            {/* No way back: a member arrives here from a link in their course
+                PDF and has no page of their own to return to. */}
           </div>
         ) : watcher ? (
           <WatchPlayer
