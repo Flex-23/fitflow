@@ -40,8 +40,6 @@ const en = {
     month: "month",
     currency: "IQD",
     somethingWrong: "Something went wrong. Please try again.",
-    lightMode: "Light mode",
-    darkMode: "Dark mode",
     pager: {
       showing: "Showing",
       of: "of",

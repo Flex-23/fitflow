@@ -5,63 +5,16 @@
    ----------------------------------------------------------------------------
    All brand colours live here as CSS variables so the final logo/colours can be
    swapped in ONE place later. Tokens follow the shadcn/ui naming convention
-   (OKLCH) so UI primitives drop in cleanly. The app ships with a dark, energetic
-   athletic look by default (html.dark); a light palette is provided for a later
-   toggle.
-   ============================================================================ */
+   (OKLCH) so UI primitives drop in cleanly.
 
-@custom-variant dark (&:is(.dark *));
+   One palette only. FitFlow is a dark product: there is no light variant, no
+   .dark class and no toggle, so every colour below simply applies.
+   ============================================================================ */
 
 :root {
   --radius: 0.8rem;
 
   /* Brand accent — the single knob to turn for rebranding. Electric lime. */
-  --brand: oklch(0.86 0.2 128);
-  --brand-foreground: oklch(0.24 0.06 130);
-
-  /* Light palette */
-  --background: oklch(0.985 0.002 250);
-  --foreground: oklch(0.17 0.01 260);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.17 0.01 260);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.17 0.01 260);
-  --primary: oklch(0.7 0.18 130);
-  --primary-foreground: oklch(0.22 0.06 130);
-  --secondary: oklch(0.96 0.004 250);
-  --secondary-foreground: oklch(0.2 0.01 260);
-  --muted: oklch(0.96 0.004 250);
-  --muted-foreground: oklch(0.52 0.01 260);
-  --accent: oklch(0.94 0.01 250);
-  --accent-foreground: oklch(0.2 0.01 260);
-  --destructive: oklch(0.58 0.22 27);
-  --destructive-foreground: oklch(0.98 0 0);
-  --success: oklch(0.65 0.17 150);
-  --success-foreground: oklch(0.98 0 0);
-  --warning: oklch(0.8 0.16 80);
-  --warning-foreground: oklch(0.28 0.06 80);
-  --border: oklch(0.9 0.004 250);
-  --input: oklch(0.9 0.004 250);
-  --ring: oklch(0.7 0.18 130);
-
-  --chart-1: oklch(0.7 0.18 130);
-  --chart-2: oklch(0.6 0.13 220);
-  --chart-3: oklch(0.7 0.15 60);
-  --chart-4: oklch(0.62 0.2 300);
-  --chart-5: oklch(0.58 0.22 27);
-
-  --sidebar: oklch(0.98 0.002 250);
-  --sidebar-foreground: oklch(0.17 0.01 260);
-  --sidebar-primary: oklch(0.7 0.18 130);
-  --sidebar-primary-foreground: oklch(0.22 0.06 130);
-  --sidebar-accent: oklch(0.94 0.01 250);
-  --sidebar-accent-foreground: oklch(0.2 0.01 260);
-  --sidebar-border: oklch(0.9 0.004 250);
-  --sidebar-ring: oklch(0.7 0.18 130);
-}
-
-.dark {
-  /* Dark, sporty palette (default look) */
   --brand: oklch(0.87 0.21 128);
   --brand-foreground: oklch(0.22 0.06 130);
 

@@ -1,12 +1,9 @@
 import type { Metadata } from "next";
-import Image from "next/image";
-import { cookies } from "next/headers";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/language-switcher";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { BrandWatermark } from "@/components/brand-watermark";
 import { LoginForm } from "@/components/auth/login-form";
-import { THEME_COOKIE, defaultTheme, isTheme } from "@/lib/theme";
 
 export const metadata: Metadata = { title: "Sign in" };
 
@@ -20,38 +17,14 @@ export default async function LoginPage({
   const { next } = await searchParams;
   // Only a same-origin path may be carried through to the redirect.
   const safeNext = next?.startsWith("/") && !next.startsWith("//") ? next : undefined;
-  const themeCookie = (await cookies()).get(THEME_COOKIE)?.value;
-  const theme = isTheme(themeCookie) ? themeCookie : defaultTheme;
 
   return (
     <div className="relative flex min-h-dvh flex-col overflow-hidden">
-      {/* ── Watermark ──
-          The brand mark fills the screen behind everything, faded far enough
-          that the form on top stays the thing you read. aria-hidden and
-          pointer-events-none so it is scenery, never content.
-
-          The artwork is a dark-background JPG, which needs handling per theme:
-          on dark, `screen` blending drops its near-black backdrop away and
-          leaves only the green mark glowing; on light that trick would erase
-          it, so it simply sits at a very low opacity. The radial mask fades
-          all four edges, otherwise the letterboxed image reads as a rectangle
-          pasted on the page. */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 select-none">
-        <Image
-          src="/fitflow-logo.jpg"
-          alt=""
-          fill
-          priority
-          sizes="100vw"
-          className="object-contain opacity-[0.07] [mask-image:radial-gradient(ellipse_at_center,black_35%,transparent_72%)] dark:opacity-100 dark:mix-blend-screen"
-        />
-      </div>
+      {/* Full strength here: the sign-in page has almost nothing on it, so the
+          mark can carry the screen. */}
+      <BrandWatermark />
 
       <header className="relative z-10 flex items-center justify-end gap-2 p-6">
-        <ThemeToggle
-          current={theme}
-          labels={{ light: dict.common.lightMode, dark: dict.common.darkMode }}
-        />
         <LanguageSwitcher current={locale} />
       </header>
 

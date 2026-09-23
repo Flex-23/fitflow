@@ -32,9 +32,8 @@ import {
 import { logout } from "@/app/actions/auth";
 import { Brand } from "@/components/brand";
 import { LanguageSwitcher } from "@/components/language-switcher";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { BrandWatermark } from "@/components/brand-watermark";
 import { MyAccount } from "@/components/layout/my-account";
-import type { Theme } from "@/lib/theme";
 import { Badge } from "@/components/ui/badge";
 import type { Dictionary } from "@/lib/i18n";
 import type { Locale } from "@/lib/i18n/config";
@@ -53,14 +52,12 @@ export function AppShell({
   user,
   dict,
   locale,
-  theme,
   notificationCount = 0,
   children,
 }: {
   user: ShellUser;
   dict: Dictionary;
   locale: Locale;
-  theme: Theme;
   notificationCount?: number;
   children: React.ReactNode;
 }) {
@@ -156,15 +153,17 @@ export function AppShell({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <ThemeToggle
-              current={theme}
-              labels={{ light: dict.common.lightMode, dark: dict.common.darkMode }}
-            />
             <LanguageSwitcher current={locale} />
           </div>
         </header>
 
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
+        {/* Behind the working area only — never under the sidebar or the
+            header, which have solid backgrounds of their own. Kept very faint
+            because tables and figures sit on top of it all day, and a
+            watermark that costs anyone a squint is not worth having. */}
+        <BrandWatermark intensity={7} />
+
+        <main className="relative z-10 flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
 
       {/* Mobile drawer */}

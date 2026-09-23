@@ -42,8 +42,6 @@ const ar: Dictionary = {
     month: "شهر",
     currency: "د.ع",
     somethingWrong: "حدث خطأ ما. حاول مرة أخرى.",
-    lightMode: "الوضع الفاتح",
-    darkMode: "الوضع الداكن",
     pager: {
       showing: "عرض",
       of: "من",
