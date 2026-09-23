@@ -57,7 +57,11 @@ export default async function LoginPage({
 
       <main className="relative z-10 flex flex-1 items-center justify-center px-6 pb-16">
         <div className="w-full max-w-sm">
-          <div className="rounded-2xl border border-border/60 bg-card/70 p-7 shadow-2xl backdrop-blur-xl sm:p-8">
+          {/* Deliberately see-through: the mark behind is the point. Only a
+              light blur, so what shows through still reads as the logo rather
+              than a smear, and just enough tint to keep the labels legible
+              where the bright green passes under them. */}
+          <div className="rounded-2xl border border-white/15 bg-card/35 p-7 shadow-2xl backdrop-blur-sm sm:p-8">
             <div className="mb-7 space-y-1.5 text-center">
               <h1 className="text-2xl font-bold tracking-tight">{dict.auth.welcomeBack}</h1>
               <p className="text-sm text-muted-foreground">{dict.auth.signInSubtitle}</p>

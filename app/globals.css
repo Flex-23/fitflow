@@ -196,6 +196,19 @@
     outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
+  /* Chrome paints autofilled fields its own pale yellow-blue, which turns
+     saved logins into glaring white boxes on the dark theme. The colour
+     cannot be set directly, so it is covered with an inset shadow and the
+     text tinted; the absurd transition delay stops Chrome repainting it. */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--foreground);
+    -webkit-box-shadow: 0 0 0 1000px var(--background) inset;
+    box-shadow: 0 0 0 1000px var(--background) inset;
+    caret-color: var(--foreground);
+    transition: background-color 9999s ease-in-out 0s;
+  }
 }
 
 /* ============================================================================
