@@ -108,7 +108,7 @@ export function AppShell({
       heading: n.management,
       items: [
         { href: "/archive", label: n.archive, icon: Archive },
-        { href: "/captains", label: n.captains, icon: ShieldCheck },
+        { href: "/captains", label: n.staff, icon: ShieldCheck },
         { href: "/activity", label: n.activityLog, icon: ScrollText },
         {
           href: "/notifications",
