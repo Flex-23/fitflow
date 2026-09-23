@@ -3,11 +3,12 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Clock, LogOut, UserRound } from "lucide-react";
+import { Clock, ExternalLink, LogOut, UserRound } from "lucide-react";
 import { endWatchSession } from "@/app/actions/watch";
 import { Button } from "@/components/ui/button";
 import type { Dictionary } from "@/lib/i18n";
 import type { Locale } from "@/lib/i18n/config";
+import type { ParsedVideoLink } from "@/lib/video-link";
 
 /**
  * Semi-transparent label that drifts around the frame every few seconds, so
@@ -35,6 +36,7 @@ function Watermark({ text }: { text: string }) {
 export function WatchPlayer({
   token,
   exerciseName,
+  link,
   watcherName,
   watcherPhone,
   expiresAt,
@@ -43,6 +45,8 @@ export function WatchPlayer({
 }: {
   token: string;
   exerciseName: string;
+  /** Set when the video lives elsewhere; null for a file the gym uploaded. */
+  link: ParsedVideoLink | null;
   watcherName: string;
   watcherPhone: string;
   expiresAt: number;
@@ -85,24 +89,52 @@ export function WatchPlayer({
         Best-effort anti-download: no download button, no picture-in-picture,
         no context menu, no drag, and a moving watermark with the viewer's
         name and phone so a screen recording is traceable to them.
+
+        None of that applies to a linked video: it is served by YouTube or
+        TikTok inside their own iframe, which we cannot reach into, and it was
+        public on their site to begin with.
       */}
       <div
         className="relative select-none overflow-hidden rounded-xl bg-black shadow-lg"
-        onContextMenu={(e) => e.preventDefault()}
+        onContextMenu={(e) => (link ? undefined : e.preventDefault())}
         onDragStart={(e) => e.preventDefault()}
       >
-        <video
-          controls
-          autoPlay
-          playsInline
-          disablePictureInPicture
-          disableRemotePlayback
-          controlsList="nodownload noremoteplayback noplaybackrate"
-          onContextMenu={(e) => e.preventDefault()}
-          className="w-full"
-          src={`/api/videos/stream/${token}`}
-        />
-        <Watermark text={`${watcherName} · ${watcherPhone}`} />
+        {link?.embedUrl ? (
+          <iframe
+            src={link.embedUrl}
+            title={exerciseName}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            referrerPolicy="strict-origin-when-cross-origin"
+            className="aspect-video w-full"
+          />
+        ) : link ? (
+          // An address we cannot embed — a private page, a site that forbids
+          // framing. Hand it over rather than showing a blank black box.
+          <div className="flex flex-col items-center gap-3 p-10 text-center">
+            <ExternalLink className="size-8 text-brand" />
+            <p className="text-sm text-white/80">{t.openOnProvider}</p>
+            <Button asChild variant="brand" size="sm">
+              <a href={link.url} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="size-4" />
+                {t.openVideo}
+              </a>
+            </Button>
+          </div>
+        ) : (
+          <video
+            controls
+            autoPlay
+            playsInline
+            disablePictureInPicture
+            disableRemotePlayback
+            controlsList="nodownload noremoteplayback noplaybackrate"
+            onContextMenu={(e) => e.preventDefault()}
+            className="w-full"
+            src={`/api/videos/stream/${token}`}
+          />
+        )}
+        {!link && <Watermark text={`${watcherName} · ${watcherPhone}`} />}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-xs">

@@ -10,6 +10,7 @@ import {
   isAcceptedVideoType,
   MAX_VIDEO_BYTES,
 } from "@/lib/video-formats";
+import { parseVideoLink, providerLabel } from "@/lib/video-link";
 import { logActivity } from "@/lib/activity";
 import { canManageVideos } from "@/lib/videos-perms";
 import type { ActionState } from "@/lib/action-state";
@@ -88,6 +89,48 @@ export async function registerVideo(input: {
   return { ok: true, id: video.id };
 }
 
+/**
+ * Record a video that lives somewhere else. Nothing is downloaded or copied —
+ * the gym is pointing at a YouTube/TikTok page, and the member is shown it
+ * behind the same phone check as an uploaded clip.
+ */
+export async function addVideoLink(input: {
+  exerciseName: string;
+  url: string;
+}): Promise<ActionState & { id?: string }> {
+  const user = await getCurrentUser();
+  if (!canManageVideos(user)) return { error: "forbidden" };
+
+  const exerciseName = input.exerciseName.trim();
+  if (!exerciseName) return { error: "name_required" };
+
+  // Parsed rather than trusted: this rejects javascript: and anything that is
+  // not a real http(s) address before it can reach an href.
+  const link = parseVideoLink(input.url);
+  if (!link) return { error: "invalid_link" };
+
+  const video = await prisma.video.create({
+    data: {
+      exerciseName,
+      source: "LINK",
+      url: link.url,
+      hiddenToken: nanoid(24),
+      addedById: user!.id,
+    },
+  });
+
+  await logActivity({
+    userId: user!.id,
+    action: "ADD_VIDEO",
+    targetType: "Video",
+    targetId: video.id,
+    details: `${exerciseName} • ${providerLabel(link.provider)}`,
+  });
+
+  revalidatePath("/videos");
+  return { ok: true, id: video.id };
+}
+
 export async function editVideo(
   _prev: ActionState,
   formData: FormData
@@ -119,7 +162,8 @@ export async function deleteVideo(id: string) {
   if (!video) return;
 
   await prisma.video.delete({ where: { id } });
-  await deleteStored(video.storedFilename);
+  // A linked video has no file of ours to remove — we never held a copy.
+  if (video.storedFilename) await deleteStored(video.storedFilename);
   await logActivity({
     userId: user!.id,
     action: "DELETE_VIDEO",

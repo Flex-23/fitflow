@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
 import { getWatchSession } from "@/lib/watch-session";
+import { parseVideoLink } from "@/lib/video-link";
 import { Brand } from "@/components/brand";
 import { WatchGate } from "@/components/watch/watch-gate";
 import { WatchPlayer } from "@/components/watch/watch-player";
@@ -22,7 +23,7 @@ export default async function WatchPage({
   const [video, session] = await Promise.all([
     prisma.video.findUnique({
       where: { hiddenToken: token },
-      select: { exerciseName: true },
+      select: { exerciseName: true, source: true, url: true },
     }),
     getWatchSession(),
   ]);
@@ -63,6 +64,7 @@ export default async function WatchPage({
           <WatchPlayer
             token={token}
             exerciseName={video.exerciseName}
+            link={video.source === "LINK" ? parseVideoLink(video.url ?? "") : null}
             watcherName={watcher.name}
             watcherPhone={watcher.phone}
             expiresAt={watcher.expiresAt}

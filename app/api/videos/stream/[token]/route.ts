@@ -23,7 +23,9 @@ export async function GET(
     where: { hiddenToken: token },
     select: { storedFilename: true },
   });
-  if (!video) return new Response(null, { status: 404 });
+  // Linked videos have no stored file: the watch page embeds them from their
+  // own host instead of ever coming through here.
+  if (!video?.storedFilename) return new Response(null, { status: 404 });
 
   // Access: staff who still exist and are active (checked against the
   // database, not just the cookie) OR a member holding a watch session.

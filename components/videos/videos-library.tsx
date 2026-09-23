@@ -4,13 +4,14 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useActionState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Video, Upload, Play, Pencil, Trash2, ShieldCheck, Info } from "lucide-react";
+import { Video, Upload, Play, Pencil, Trash2, ShieldCheck, Info, Link as LinkIcon } from "lucide-react";
 import { MAX_VIDEO_BYTES, isAcceptedVideoType } from "@/lib/video-formats";
 import {
   editVideo,
   deleteVideo,
   requestVideoUpload,
   registerVideo,
+  addVideoLink,
 } from "@/app/actions/videos";
 import { emptyState } from "@/lib/action-state";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,9 @@ import { Dialog } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SearchInput } from "@/components/ui/search-input";
+import { Badge } from "@/components/ui/badge";
+import { parseVideoLink, providerLabel } from "@/lib/video-link";
+import { cn } from "@/lib/utils";
 import type { Dictionary } from "@/lib/i18n";
 
 export type VideoRow = {
@@ -28,6 +32,9 @@ export type VideoRow = {
   hiddenToken: string;
   addedByName: string | null;
   createdAt: string;
+  /** Where the video lives. A link is never stored by us. */
+  source: "UPLOAD" | "LINK";
+  url: string | null;
 };
 
 export function VideosLibrary({ videos, dict }: { videos: VideoRow[]; dict: Dictionary }) {
@@ -38,7 +45,7 @@ export function VideosLibrary({ videos, dict }: { videos: VideoRow[]; dict: Dict
 
   return (
     <div className="space-y-6">
-      <UploadCard dict={dict} />
+      <AddVideoCard dict={dict} />
 
       <div className="space-y-4">
         <SearchInput placeholder={t.searchVideos} />
@@ -56,7 +63,15 @@ export function VideosLibrary({ videos, dict }: { videos: VideoRow[]; dict: Dict
                   <Play className="size-10 text-brand transition-transform group-hover:scale-110" />
                 </button>
                 <div className="flex flex-1 flex-col p-4">
-                  <p className="line-clamp-2 font-medium">{v.exerciseName}</p>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="line-clamp-2 font-medium">{v.exerciseName}</p>
+                    {v.source === "LINK" && v.url && (
+                      <Badge variant="secondary" className="shrink-0 gap-1">
+                        <LinkIcon className="size-3" />
+                        {providerLabel(parseVideoLink(v.url)?.provider ?? "other")}
+                      </Badge>
+                    )}
+                  </div>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {v.addedByName ? `${t.addedBy} ${v.addedByName}` : ""}
                   </p>
@@ -91,26 +106,7 @@ export function VideosLibrary({ videos, dict }: { videos: VideoRow[]; dict: Dict
         title={preview?.exerciseName}
         className="max-w-2xl"
       >
-        {preview && (
-          <div
-            className="select-none overflow-hidden rounded-lg bg-black"
-            onContextMenu={(e) => e.preventDefault()}
-            onDragStart={(e) => e.preventDefault()}
-          >
-            <video
-              key={preview.id}
-              controls
-              autoPlay
-              playsInline
-              disablePictureInPicture
-              disableRemotePlayback
-              controlsList="nodownload noremoteplayback"
-              onContextMenu={(e) => e.preventDefault()}
-              className="w-full"
-              src={`/api/videos/stream/${preview.hiddenToken}`}
-            />
-          </div>
-        )}
+        {preview && <PreviewBody video={preview} dict={dict} />}
       </Dialog>
 
       {/* Edit */}
@@ -135,6 +131,67 @@ export function VideosLibrary({ videos, dict }: { videos: VideoRow[]; dict: Dict
           />
         )}
       </Dialog>
+    </div>
+  );
+}
+
+/**
+ * Preview for either kind of video: our own file plays inline, somebody
+ * else's plays in their iframe, and one we cannot frame is handed over as a
+ * link rather than shown as a black box.
+ */
+function PreviewBody({ video, dict }: { video: VideoRow; dict: Dictionary }) {
+  const t = dict.videos;
+  const link = video.source === "LINK" ? parseVideoLink(video.url ?? "") : null;
+
+  if (link?.embedUrl) {
+    return (
+      <iframe
+        key={video.id}
+        src={link.embedUrl}
+        title={video.exerciseName}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+        referrerPolicy="strict-origin-when-cross-origin"
+        className="aspect-video w-full overflow-hidden rounded-lg bg-black"
+      />
+    );
+  }
+
+  if (link) {
+    return (
+      <div className="flex flex-col items-center gap-3 rounded-lg bg-black p-10 text-center">
+        <LinkIcon className="size-8 text-brand" />
+        <p className="text-sm text-white/80" dir="ltr">
+          {link.url}
+        </p>
+        <Button asChild variant="brand" size="sm">
+          <a href={link.url} target="_blank" rel="noopener noreferrer">
+            {t.openLink}
+          </a>
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="select-none overflow-hidden rounded-lg bg-black"
+      onContextMenu={(e) => e.preventDefault()}
+      onDragStart={(e) => e.preventDefault()}
+    >
+      <video
+        key={video.id}
+        controls
+        autoPlay
+        playsInline
+        disablePictureInPicture
+        disableRemotePlayback
+        controlsList="nodownload noremoteplayback"
+        onContextMenu={(e) => e.preventDefault()}
+        className="w-full"
+        src={`/api/videos/stream/${video.hiddenToken}`}
+      />
     </div>
   );
 }
@@ -211,14 +268,7 @@ function UploadCard({ dict }: { dict: Dictionary }) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Upload className="size-5 text-brand" />
-          {t.uploadTitle}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+    <>
         <form ref={formRef} onSubmit={upload} className="grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
           <div className="space-y-2">
             <Label htmlFor="exerciseName">{t.exerciseName}</Label>
@@ -263,6 +313,132 @@ function UploadCard({ dict }: { dict: Dictionary }) {
             {t.maxSizeNote.replace("{mb}", String(MAX_VIDEO_BYTES / 1024 / 1024))}
           </span>
         </p>
+    </>
+  );
+}
+
+/**
+ * Record a video hosted elsewhere. Nothing is uploaded or copied: the gym is
+ * pointing at a page on YouTube or TikTok, so there is no size limit and
+ * nothing of ours to store.
+ */
+function LinkForm({ dict }: { dict: Dictionary }) {
+  const t = dict.videos;
+  const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
+  const [name, setName] = useState("");
+  const [url, setUrl] = useState("");
+  const [saving, startSaving] = useTransition();
+
+  // Parsed as it is typed, so the provider is confirmed before submitting
+  // rather than after a round trip.
+  const parsed = url.trim() ? parseVideoLink(url) : null;
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return toast.error(t.exerciseName);
+    if (!parsed) return toast.error(t.invalidLink);
+
+    startSaving(async () => {
+      const res = await addVideoLink({ exerciseName: name.trim(), url });
+      if (!res.ok) {
+        toast.error(res.error === "invalid_link" ? t.invalidLink : dict.common.somethingWrong);
+        return;
+      }
+      toast.success(t.linkAdded);
+      setName("");
+      setUrl("");
+      formRef.current?.reset();
+      router.refresh();
+    });
+  }
+
+  return (
+    <>
+      <form ref={formRef} onSubmit={submit} className="grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        <div className="space-y-2">
+          <Label htmlFor="linkExerciseName">{t.exerciseName}</Label>
+          <Input
+            id="linkExerciseName"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="videoUrl">{t.videoUrl}</Label>
+          <Input
+            id="videoUrl"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            dir="ltr"
+            inputMode="url"
+            placeholder="https://youtube.com/watch?v=…"
+            required
+            className="text-start"
+          />
+        </div>
+        <Button type="submit" variant="brand" disabled={saving || !parsed}>
+          <LinkIcon className="size-4" />
+          {saving ? dict.common.saving : dict.common.add}
+        </Button>
+      </form>
+
+      <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <Info className="size-3.5" />
+          {t.linkNote}
+        </span>
+        {url.trim() && (
+          <span
+            className={
+              parsed ? "flex items-center gap-1.5 text-success" : "flex items-center gap-1.5 text-destructive"
+            }
+          >
+            <LinkIcon className="size-3.5" />
+            {parsed ? providerLabel(parsed.provider) : t.invalidLink}
+          </span>
+        )}
+      </p>
+    </>
+  );
+}
+
+/** Both ways of adding a video, behind one pair of tabs. */
+function AddVideoCard({ dict }: { dict: Dictionary }) {
+  const t = dict.videos;
+  const [mode, setMode] = useState<"upload" | "link">("upload");
+
+  const tab = (value: "upload" | "link", label: string, Icon: typeof Upload) => (
+    <button
+      type="button"
+      onClick={() => setMode(value)}
+      className={cn(
+        "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+        mode === value
+          ? "bg-brand/15 text-brand"
+          : "text-muted-foreground hover:bg-accent hover:text-foreground"
+      )}
+    >
+      <Icon className="size-4" />
+      {label}
+    </button>
+  );
+
+  return (
+    <Card>
+      <CardHeader className="flex-row items-center justify-between space-y-0">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Video className="size-5 text-brand" />
+          {t.addTitle}
+        </CardTitle>
+        <div className="flex items-center gap-1 rounded-xl bg-muted/50 p-1">
+          {tab("upload", t.fromDevice, Upload)}
+          {tab("link", t.fromLink, LinkIcon)}
+        </div>
+      </CardHeader>
+      <CardContent>
+        {mode === "upload" ? <UploadCard dict={dict} /> : <LinkForm dict={dict} />}
       </CardContent>
     </Card>
   );

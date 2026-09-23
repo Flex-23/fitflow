@@ -35,6 +35,8 @@ export default async function VideosPage({
     hiddenToken: v.hiddenToken,
     addedByName: v.addedBy?.displayName ?? null,
     createdAt: v.createdAt.toISOString(),
+    source: v.source,
+    url: v.url,
   }));
 
   return (

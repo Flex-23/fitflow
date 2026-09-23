@@ -238,20 +238,36 @@ model FreezeRecord {
 
 // ────────────────────────────── Videos library ──────────────────────────────
 
+enum VideoSource {
+  /// A file the gym uploaded; lives in the private Supabase bucket.
+  UPLOAD
+  /// Somebody else's video — YouTube, TikTok or any other address.
+  LINK
+}
+
 model Video {
-  id             String   @id @default(cuid())
-  exerciseName   String
-  // The real file on disk — never exposed to any client.
-  storedFilename String
+  id           String      @id @default(cuid())
+  exerciseName String
+  source       VideoSource @default(UPLOAD)
+
+  // ── Uploaded videos ── (null for links)
+  /// The object in the bucket — never exposed to any client.
+  storedFilename String?
   originalName   String?
-  mimeType       String
+  mimeType       String?
   sizeBytes      Int?
-  // Non-guessable public token used in URLs (nanoid).
-  hiddenToken    String   @unique
-  addedById      String?
-  addedBy        User?    @relation(fields: [addedById], references: [id], onDelete: SetNull)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+
+  // ── Linked videos ── (null for uploads)
+  /// The address as it was pasted, kept so it can be shown and re-parsed.
+  url String? @db.Text
+
+  // Non-guessable public token used in URLs (nanoid). Both kinds have one, so
+  // a course PDF links to /watch/{token} without caring where the video is.
+  hiddenToken String   @unique
+  addedById   String?
+  addedBy     User?    @relation(fields: [addedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   exercises Exercise[]
 
