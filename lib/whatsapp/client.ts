@@ -221,9 +221,12 @@ export async function ensureConnected(waitMs = 20_000): Promise<boolean> {
  * A pairing code is a key to the account, so it exists only while someone is
  * standing there with the phone. When that window closes the socket goes with
  * it, otherwise Baileys keeps minting fresh codes at nobody.
+ *
+ * Only ever a code nobody scanned: once a scan lands the socket leaves the
+ * "qr" state, and closing it then would abandon the pairing half-way.
  */
 export async function stopPairing(): Promise<void> {
-  if (state.status !== "qr" && state.status !== "connecting") return;
+  if (state.status !== "qr") return;
   state.stopped = true;
   try {
     state.sock?.end(undefined);
@@ -233,6 +236,29 @@ export async function stopPairing(): Promise<void> {
   state.sock = null;
   state.qr = null;
   state.status = "disconnected";
+}
+
+/**
+ * Throw away an unfinished pairing so the next one starts clean.
+ *
+ * A scan that was interrupted before it completed leaves an identity on disk
+ * that WhatsApp will not accept again: every later attempt tries to resume it
+ * and fails, which looks exactly like a QR code that does nothing. Called
+ * once when a fresh pairing window opens — never while one is in progress,
+ * and never when the number is properly linked.
+ */
+export async function resetPairing(): Promise<void> {
+  state.stopped = true;
+  try {
+    state.sock?.end(undefined);
+  } catch {
+    // Already gone.
+  }
+  state.sock = null;
+  state.qr = null;
+  state.me = null;
+  state.status = "disconnected";
+  await rm(authDir(), { recursive: true, force: true }).catch(() => {});
 }
 
 /** Unlink this device and forget the stored credentials. */

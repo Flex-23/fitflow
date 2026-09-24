@@ -39,6 +39,20 @@ const prisma = workerPrisma();
 const stamp = () => new Date().toLocaleTimeString("en-GB");
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * Baileys reports a broken stream by throwing from inside its own event
+ * handlers, where there is nobody to catch it. Unattended that ends the
+ * process — and the worst moment for that is mid-pairing, which is exactly
+ * when the stream is most likely to wobble. Logged instead: the socket's own
+ * close handler brings the connection back, and the loop below carries on.
+ */
+process.on("unhandledRejection", (e) => {
+  console.error(`[${stamp()}] unhandled rejection:`, e instanceof Error ? e.message : e);
+});
+process.on("uncaughtException", (e) => {
+  console.error(`[${stamp()}] uncaught:`, e instanceof Error ? e.message : e);
+});
+
 async function setSetting(key: string, value: string) {
   await prisma.setting
     .upsert({ where: { key }, update: { value }, create: { key, value } })
@@ -60,6 +74,8 @@ async function getSetting(key: string): Promise<string> {
  * website, which this process has no other way of hearing about.
  */
 let pairingUntil = 0;
+/** The window we have already cleared the decks for, so it happens once. */
+let preparedWindow = 0;
 async function readPairingWindow(): Promise<boolean> {
   const raw = await getSetting(WA_PAIR_UNTIL_KEY);
   const until = raw ? Date.parse(raw) : NaN;
@@ -312,6 +328,14 @@ async function main() {
     const pairing = await readPairingWindow();
     if (!(await wa.hasCredentials())) {
       if (pairing) {
+        // Each new window starts from nothing. An earlier scan that never
+        // finished leaves an identity WhatsApp will not take back, and it
+        // would quietly defeat every attempt after it.
+        if (pairingUntil !== preparedWindow) {
+          preparedWindow = pairingUntil;
+          await wa.resetPairing();
+          console.log(`[${stamp()}] pairing requested — starting fresh`);
+        }
         void wa.connect();
       } else if (wa.getStatus().status === "qr") {
         await wa.stopPairing();

@@ -51,6 +51,13 @@ while ($true) {
     Write-Log "log rotated"
   }
 
+  # Windows PowerShell turns every stderr line from a native program into an
+  # ErrorRecord, and under $ErrorActionPreference = "Stop" the first one is a
+  # terminating error — so a worker that merely *logged* a warning was being
+  # killed by its own supervisor. Stderr is ordinary output here; it belongs
+  # in the log, not in the catch block.
+  $outer = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
   try {
     # --env-file makes the worker read .env exactly as `npm run gate` does.
     # Piped line by line so each one lands as UTF-8 and the log stays live
@@ -61,6 +68,8 @@ while ($true) {
   } catch {
     $code = -1
     Write-Log "failed to start: $($_.Exception.Message)"
+  } finally {
+    $ErrorActionPreference = $outer
   }
 
   Write-Log "worker exited (code $code) — restarting in ${RestartDelay}s"
