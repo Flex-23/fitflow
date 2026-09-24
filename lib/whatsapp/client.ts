@@ -59,19 +59,24 @@ function authDir(): string {
 }
 
 /**
- * True once a QR scan has actually paired this device.
+ * True when there is a stored identity worth reconnecting with.
  *
- * Not the same as "creds.json exists": Baileys writes that file the moment a
- * socket is opened, long before anyone scans anything, so its presence says
- * only that we have tried. `registered` is what it sets once the pairing went
- * through, and that is the question every caller here is really asking.
+ * Not "creds.json exists": Baileys writes that file the moment a socket
+ * opens, long before anyone scans anything, so its presence says only that
+ * we have tried. What it fills in on a successful scan is `me` — the number
+ * WhatsApp assigned this device.
+ *
+ * Deliberately not `registered`, which reads like the obvious answer and is
+ * the wrong one: Baileys sets that flag only when pairing by typed code, so
+ * a number linked by QR — the way this gym links one — leaves it false for
+ * ever. Trusting it left the worker idle beside a queue it could have sent.
  */
 export async function hasCredentials(): Promise<boolean> {
   try {
     const raw = await readFile(path.join(authDir(), "creds.json"), "utf8");
-    return JSON.parse(raw)?.registered === true;
+    return typeof JSON.parse(raw)?.me?.id === "string";
   } catch {
-    // Missing, unreadable or half-written — either way, not paired.
+    // Missing, unreadable or half-written — either way, nothing to resume.
     return false;
   }
 }
