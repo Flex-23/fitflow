@@ -81,6 +81,7 @@ enum ActivityAction {
   CREATE_BACKUP
   RESTORE_BACKUP
   SEND_COURSE
+  SEND_PORTAL_LINK
 }
 
 enum NotificationType {
@@ -145,6 +146,10 @@ model Member {
   // Low 24 bits of cardNumber — what the turnstile's Wiegand-26 reader
   // reports to the C3 panel. This is the value the gate bridge looks up.
   cardWiegand Int?
+  // Credential for the member's own page. Sent to them once over WhatsApp;
+  // opening it starts a session, so the phone never has to type anything.
+  // Generated the first time a link is asked for, not at registration.
+  portalToken String? @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

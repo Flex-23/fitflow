@@ -24,6 +24,7 @@ import {
   Settings,
   DatabaseBackup,
   DoorOpen,
+  LayoutDashboard,
   LogOut,
   Menu,
   X,
@@ -72,6 +73,10 @@ export function AppShell({
   const canVideos = isManager || (isCaptain && user.canAddVideos);
 
   const groups: NavGroup[] = [
+    // The manager's own landing screen sits above the role groups, on its own.
+    isManager && {
+      items: [{ href: "/summary", label: n.summary, icon: LayoutDashboard }],
+    },
     canReception && {
       heading: n.reception,
       items: [

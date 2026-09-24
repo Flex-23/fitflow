@@ -35,6 +35,7 @@ import {
   type Gender,
 } from "@/components/reception/gender-fields";
 import { CardNumberInput } from "@/components/reception/card-number-input";
+import { PortalLinkButton } from "@/components/reception/portal-link-button";
 import { emptyState } from "@/lib/action-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -462,6 +463,7 @@ function MemberDetails({
           {t.deleteMember}
         </Button>
         <div className="flex flex-col-reverse gap-2 sm:flex-row">
+          <PortalLinkButton memberId={member.id} dict={dict} />
           <Button type="button" variant="outline" onClick={onEdit}>
             <Pencil className="size-4" />
             {t.editMember}

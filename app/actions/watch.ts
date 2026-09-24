@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { createWatchSession, clearWatchSession } from "@/lib/watch-session";
+import { createMemberSession, clearMemberSession } from "@/lib/member-session";
 import { normalizePhone } from "@/lib/whatsapp";
 import {
   clientKey,
@@ -44,12 +44,12 @@ export async function requestVideoAccess(
   }
 
   await clearFailures(key);
-  await createWatchSession(member.id, member.name);
+  await createMemberSession(member.id, member.name);
   return { ok: true };
 }
 
 export async function endWatchSession() {
-  await clearWatchSession();
+  await clearMemberSession();
 }
 
 /**

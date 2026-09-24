@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { playbackUrl } from "@/lib/storage";
 import { getCurrentUser } from "@/lib/auth/dal";
-import { getWatchSession } from "@/lib/watch-session";
+import { getMemberSession } from "@/lib/member-session";
 
 /**
  * Gate-keeps an exercise video and hands the browser a short-lived signed URL
@@ -29,7 +29,7 @@ export async function GET(
 
   // Access: staff who still exist and are active (checked against the
   // database, not just the cookie) OR a member holding a watch session.
-  const [staff, watcher] = await Promise.all([getCurrentUser(), getWatchSession()]);
+  const [staff, watcher] = await Promise.all([getCurrentUser(), getMemberSession()]);
   if (!staff && !watcher) return new Response(null, { status: 403 });
 
   // Only a <video> element on our own pages may follow this. Pasting the URL

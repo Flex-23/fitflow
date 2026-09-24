@@ -1,9 +1,12 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Cairo } from "next/font/google";
 import "./globals.css";
 import { getLocale } from "@/lib/i18n/get-locale";
+import { getDictionary } from "@/lib/i18n";
 import { localeDirection } from "@/lib/i18n/config";
 import { Toaster } from "@/components/ui/sonner";
+import { ServiceWorker } from "@/components/pwa/service-worker";
+import { InstallPrompt } from "@/components/pwa/install-prompt";
 
 // Cairo carries both Arabic and Latin glyphs, giving a consistent bilingual look.
 const cairo = Cairo({
@@ -18,10 +21,28 @@ export const metadata: Metadata = {
     template: "%s · FitFlow",
   },
   description: "FitFlow — a modern bilingual gym management system.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "FitFlow",
+    // iOS has no manifest: the bar is told to match the app's own dark chrome.
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/icons/apple-touch-icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1a1c22",
+  // Installed on a phone the app fills the screen, notch included.
+  viewportFit: "cover",
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const locale = await getLocale();
+  const dict = await getDictionary(locale);
   const dir = localeDirection[locale];
 
   return (
@@ -34,6 +55,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full font-sans antialiased">
         {children}
         <Toaster />
+        <ServiceWorker />
+        <InstallPrompt dict={dict} />
       </body>
     </html>
   );

@@ -1,15 +1,25 @@
 import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth/dal";
+import { roleHome } from "@/lib/auth/rbac";
+import { getMemberSession } from "@/lib/member-session";
 
 /**
- * There is no public landing page: the only way in is signing in.
+ * The switchboard, and the installed app's start URL.
  *
- * Members never come here — they reach their course PDF and its exercise
- * videos through the private links sent to them on WhatsApp, which need no
- * account at all.
+ * There is no public landing page. One icon on a home screen has to work for
+ * everyone, so this route reads whichever session the device holds and sends
+ * it on: staff to their own work screen, a member to their page, anyone else
+ * to the sign-in form.
  *
- * Anyone already signed in is sent on to their own home by the proxy, which
- * sees the session cookie on /login.
+ * Staff is checked first — a manager who once opened a member's link on the
+ * same phone should still land on their own screen.
  */
-export default function Home() {
+export default async function Home() {
+  const staff = await getCurrentUser();
+  if (staff) redirect(roleHome(staff.role));
+
+  const member = await getMemberSession();
+  if (member) redirect("/me");
+
   redirect("/login");
 }

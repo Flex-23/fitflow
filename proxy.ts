@@ -5,8 +5,11 @@ import { roleHome } from "@/lib/auth/rbac";
 // Next.js 16 renamed Middleware to Proxy. This runs optimistic auth checks
 // (cookie only, no DB) — the secure checks live in the Data Access Layer.
 // Everything is protected except the public surfaces below.
-// "/p" serves course PDFs through a private share token (sent over WhatsApp).
-const PUBLIC_PREFIXES = ["/login", "/watch", "/p"];
+// "/p" serves course PDFs through a private share token (sent over WhatsApp),
+// and "/me" is the member's own page, which carries a member session rather
+// than a staff one. "/offline" is the page the service worker keeps a copy of,
+// so it must render without a session — there is no server to check one.
+const PUBLIC_PREFIXES = ["/login", "/watch", "/p", "/me", "/offline"];
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;

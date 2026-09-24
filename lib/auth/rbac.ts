@@ -1,11 +1,13 @@
 import type { Role } from "@prisma/client";
 
 /**
- * Landing route after login. There is no dashboard: reception (and the
- * manager, who can do reception work) land on the registration form, and
- * captains land on the training builder.
+ * Landing route after login, and what the installed app opens on.
+ *
+ * Each role starts where its work does: the manager on the day's summary,
+ * reception on the registration form, a captain on the training builder.
  */
 export function roleHome(role: Role): string {
+  if (role === "MANAGER") return "/summary";
   return role === "CAPTAIN" ? "/training" : "/registration";
 }
 

@@ -3,7 +3,7 @@ import { VideoOff } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
-import { getWatchSession } from "@/lib/watch-session";
+import { getMemberSession } from "@/lib/member-session";
 import { parseVideoLink } from "@/lib/video-link";
 import { Brand } from "@/components/brand";
 import { WatchGate } from "@/components/watch/watch-gate";
@@ -25,7 +25,7 @@ export default async function WatchPage({
       where: { hiddenToken: token },
       select: { exerciseName: true, source: true, url: true },
     }),
-    getWatchSession(),
+    getMemberSession(),
   ]);
 
   // An open session still has to belong to a member whose subscription is
