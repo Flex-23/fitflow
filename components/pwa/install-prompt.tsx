@@ -49,11 +49,17 @@ export function InstallPrompt({ dict }: { dict: Dictionary }) {
     window.addEventListener("beforeinstallprompt", onPrompt);
 
     // iOS never fires that event, so it gets the manual instructions instead.
+    // Deferred by a frame rather than set here: Chrome fires the event almost
+    // immediately, and an iPhone bar that appears a frame later is invisible
+    // to the eye but keeps this out of the render path.
     const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
     const safari = /safari/i.test(navigator.userAgent) && !/crios|fxios/i.test(navigator.userAgent);
-    if (ios && safari) setIosHint(true);
+    const frame = ios && safari ? requestAnimationFrame(() => setIosHint(true)) : 0;
 
-    return () => window.removeEventListener("beforeinstallprompt", onPrompt);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      if (frame) cancelAnimationFrame(frame);
+    };
   }, []);
 
   if (!event && !iosHint) return null;

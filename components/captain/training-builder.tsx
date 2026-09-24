@@ -26,8 +26,9 @@ import {
 import { MemberPicker } from "@/components/captain/member-picker";
 import { MemberSummary } from "@/components/captain/member-summary";
 import { PreviousCoursesDialog, TemplatesDialog } from "@/components/captain/course-dialogs";
-import { WhatsAppSend, reportSend } from "@/components/captain/whatsapp-send";
 import { sendCourseToMember } from "@/app/actions/whatsapp";
+import { reportSend } from "@/components/captain/whatsapp-send";
+import { CourseDelivery } from "@/components/captain/course-delivery";
 import { Autocomplete } from "@/components/ui/autocomplete";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -471,28 +472,16 @@ export function TrainingBuilder({
         </div>
       )}
 
-      {/* ── Resend / manual delivery ── */}
-      {saved && member && whatsappEnabled && (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-success/30 bg-success/5 p-4">
-          <span className="text-sm font-medium">
-            {t.whatsappReady} <span className="font-semibold">{member.name}</span>{" "}
-            <span className="text-muted-foreground" dir="ltr">
-              ({member.phone})
-            </span>
-          </span>
-          <div className="ms-auto">
-            <WhatsAppSend
-              courseId={saved.id}
-              phone={member.phone}
-              memberName={member.name}
-              kind="training"
-              shareToken={saved.shareToken}
-              pdfUrl={`/api/courses/training/${saved.id}/pdf`}
-              dict={dict}
-              enabled={whatsappEnabled}
-            />
-          </div>
-        </div>
+      {/* ── Delivery ── */}
+      {saved && member && (
+        <CourseDelivery
+          courseId={saved.id}
+          kind="training"
+          member={{ id: member.id, name: member.name, phone: member.phone }}
+          shareToken={saved.shareToken}
+          whatsappEnabled={whatsappEnabled}
+          dict={dict}
+        />
       )}
 
       {!member && !editing && (
@@ -506,7 +495,7 @@ export function TrainingBuilder({
         courses={previous}
         dict={dict}
         locale={locale}
-        member={member ? { name: member.name, phone: member.phone } : null}
+        member={member ? { id: member.id, name: member.name, phone: member.phone } : null}
         whatsappEnabled={whatsappEnabled}
         onCopy={(c) => {
           loadBody(c.days);

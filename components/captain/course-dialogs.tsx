@@ -20,6 +20,7 @@ import {
 import { deleteTemplate, type TrainingCourseDTO } from "@/app/actions/courses";
 import { sendCourseToMember } from "@/app/actions/whatsapp";
 import { reportSend } from "@/components/captain/whatsapp-send";
+import { PortalLinkButton } from "@/components/portal-link-button";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -100,7 +101,7 @@ export function PreviousCoursesDialog({
   onCopy: (course: TrainingCourseDTO) => void;
   dict: Dictionary;
   locale: Locale;
-  member: { name: string; phone: string } | null;
+  member: { id: string; name: string; phone: string } | null;
   whatsappEnabled: boolean;
 }) {
   const t = dict.captain;
@@ -149,9 +150,19 @@ export function PreviousCoursesDialog({
                     ))}
                 </div>
                 <div className="flex items-center gap-1.5">
-                  {whatsappEnabled && member && (
-                    <ResendButton courseId={c.id} memberName={member.name} dict={dict} />
-                  )}
+                  {member &&
+                    (whatsappEnabled ? (
+                      <ResendButton courseId={c.id} memberName={member.name} dict={dict} />
+                    ) : (
+                      // Course delivery is paused; the member reaches this
+                      // course through their own page instead.
+                      <PortalLinkButton
+                        memberId={member.id}
+                        dict={dict}
+                        variant="soft-brand"
+                        size="xs"
+                      />
+                    ))}
                   <Button asChild variant="soft" size="xs">
                     <a href={`/api/courses/training/${c.id}/pdf`} target="_blank" rel="noopener noreferrer">
                       <FileDown />

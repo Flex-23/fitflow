@@ -17,6 +17,10 @@ import { SignJWT, jwtVerify } from "jose";
  * that it keeps working. Length is not what protects the data — every page
  * re-checks that the member still holds a running subscription before showing
  * anything, so a cancelled member's saved session stops working by itself.
+ *
+ * The cookie is self-contained, so it cannot be deleted from the server. It
+ * instead carries the member's revocation number, and the portal refuses any
+ * session whose number has been left behind — that is what a lost phone needs.
  */
 export const MEMBER_COOKIE = "fitflow_member";
 export const MEMBER_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
@@ -27,11 +31,17 @@ function key(): Uint8Array {
   return new TextEncoder().encode(secret);
 }
 
-export type MemberSession = { memberId: string; name: string; expiresAt: number };
+export type MemberSession = {
+  memberId: string;
+  name: string;
+  /** The member's revocation number at the time this session was issued. */
+  epoch: number;
+  expiresAt: number;
+};
 
-export async function createMemberSession(memberId: string, name: string) {
+export async function createMemberSession(memberId: string, name: string, epoch = 0) {
   const expiresAt = new Date(Date.now() + MEMBER_TTL_MS);
-  const token = await new SignJWT({ m: memberId, n: name })
+  const token = await new SignJWT({ m: memberId, n: name, e: epoch })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(expiresAt)
@@ -56,6 +66,7 @@ export async function getMemberSession(): Promise<MemberSession | null> {
     return {
       memberId: payload.m,
       name: typeof payload.n === "string" ? payload.n : "",
+      epoch: typeof payload.e === "number" ? payload.e : 0,
       expiresAt: payload.exp * 1000,
     };
   } catch {

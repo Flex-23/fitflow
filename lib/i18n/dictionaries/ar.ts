@@ -118,8 +118,13 @@ const ar: Dictionary = {
     deferred: "آجل",
   },
   reception: {
+    revokeDevices: "إخراج الأجهزة",
+    revokeDevicesHelp: "ينهي كل جلسة مفتوحة لهذا المشترك — للهاتف المفقود أو المسروق.",
+    revokeDevicesConfirm: "إخراج هذا المشترك من كل الأجهزة؟",
+    revokeDevicesDone: "تم الإخراج. أرسل رابطاً جديداً عند الحاجة.",
     sendAppLink: "إرسال رابط التطبيق",
-    appLinkSent: "سيُفتح واتساب والرابط جاهز للإرسال.",
+    appLinkSent:
+      "سيُفتح واتساب والرابط جاهز. يعمل مرة واحدة ولمدة {n} دقائق — أرسله الآن.",
     appLinkCopied: "تم نسخ الرابط",
     appLinkNoPhone: "لا يوجد رقم هاتف لهذا المشترك.",
     appLinkLocal: "لا يملك التطبيق عنواناً عاماً بعد، لذا يعمل هذا الرابط على هذا الحاسوب فقط.",
@@ -593,6 +598,7 @@ const ar: Dictionary = {
     RESTORE_BACKUP: "استعاد نسخة احتياطية",
     SEND_COURSE: "أرسل كورساً عبر واتساب",
     SEND_PORTAL_LINK: "أرسل لمشترك رابط التطبيق",
+    REVOKE_PORTAL_ACCESS: "أخرج مشتركاً من أجهزته",
   },
   videos: {
     title: "مكتبة الفيديوهات",
@@ -628,6 +634,7 @@ const ar: Dictionary = {
     hiddenLinkNote: "لا يتم كشف الموقع الحقيقي للملف أبداً.",
   },
   captain: {
+    portalReady: "أرسل رابط التطبيق إلى",
     selectMember: "اختر العضو",
     searchMember: "ابحث بالاسم أو الهاتف…",
     noMemberSelected: "لم يتم اختيار عضو",
@@ -748,6 +755,12 @@ const ar: Dictionary = {
     offlineBody: "يحتاج FitFlow إلى الإنترنت لعرض بياناتك. حاول مرة أخرى بعد عودة الاتصال.",
   },
   portal: {
+    linkExpired: "انتهت صلاحية هذا الرابط",
+    linkExpiredBody: "الرابط يعمل مرة واحدة ولعشر دقائق فقط. اطلب من الصالة إرسال رابط جديد.",
+    tooMany: "محاولات كثيرة",
+    tooManyBody: "حاول بعد نصف ساعة، أو اطلب من الصالة رابطاً جديداً.",
+    revoked: "تم إخراج هذا الجهاز",
+    revokedBody: "اطلب من الصالة إرسال رابط جديد للدخول مرة أخرى.",
     title: "عضويتي",
     subscription: "الاشتراك",
     daysLeft: "متبقٍ {n} يوم",
@@ -758,8 +771,6 @@ const ar: Dictionary = {
     trainingCourse: "كورس تدريب",
     nutritionCourse: "كورس تغذية",
     noCourses: "لا توجد كورسات بعد — سيرسل لك الكابتن كورسك.",
-    signedOut: "هذا الرابط لم يعد صالحاً",
-    signedOutBody: "اطلب من الصالة إرسال رابطك مرة أخرى على واتساب.",
     footerNote: "اضغط على أي تمرين داخل الكورس لمشاهدة الفيديو.",
   },
   watch: {

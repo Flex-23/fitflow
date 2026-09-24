@@ -9,8 +9,9 @@ import { MemberPicker, type BasicMember } from "@/components/captain/member-pick
 import { MemberSummary } from "@/components/captain/member-summary";
 import { getMemberProfile, type MemberTrainingProfile } from "@/app/actions/courses";
 import type { Locale } from "@/lib/i18n/config";
-import { WhatsAppSend, reportSend } from "@/components/captain/whatsapp-send";
 import { sendCourseToMember } from "@/app/actions/whatsapp";
+import { reportSend } from "@/components/captain/whatsapp-send";
+import { CourseDelivery } from "@/components/captain/course-delivery";
 import { Autocomplete } from "@/components/ui/autocomplete";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -203,27 +204,15 @@ export function NutritionBuilder({
         )}
       </div>
 
-      {saved && member && whatsappEnabled && (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-success/30 bg-success/5 p-4">
-          <span className="text-sm font-medium">
-            {t.whatsappReady} <span className="font-semibold">{member.name}</span>{" "}
-            <span className="text-muted-foreground" dir="ltr">
-              ({member.phone})
-            </span>
-          </span>
-          <div className="ms-auto">
-            <WhatsAppSend
-              courseId={saved.id}
-              phone={member.phone}
-              memberName={member.name}
-              kind="nutrition"
-              shareToken={saved.shareToken}
-              pdfUrl={`/api/courses/nutrition/${saved.id}/pdf`}
-              dict={dict}
-              enabled={whatsappEnabled}
-            />
-          </div>
-        </div>
+      {saved && member && (
+        <CourseDelivery
+          courseId={saved.id}
+          kind="nutrition"
+          member={{ id: member.id, name: member.name, phone: member.phone }}
+          shareToken={saved.shareToken}
+          whatsappEnabled={whatsappEnabled}
+          dict={dict}
+        />
       )}
 
       {!member && (

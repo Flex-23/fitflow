@@ -14,6 +14,21 @@ export function isWhatsAppEnabled(): boolean {
   return process.env.WHATSAPP_ENABLED === "true";
 }
 
+/**
+ * Course PDFs are no longer pushed over WhatsApp.
+ *
+ * A member now gets one personal link that opens their page, and the course
+ * is one of the things on it — sending the PDF separately is a second thing
+ * to keep working for no extra reach. The pairing, the worker and the outbox
+ * are all left in place; flip this to `false` to bring delivery back.
+ */
+export const COURSE_SEND_PAUSED = true;
+
+/** Whether the course "send" controls should appear at all. */
+export function canSendCourses(): boolean {
+  return isWhatsAppEnabled() && !COURSE_SEND_PAUSED;
+}
+
 /** Default country code used when a stored number is in local format. */
 export function countryCode(): string {
   return (process.env.WHATSAPP_COUNTRY_CODE || "964").replace(/\D/g, "");

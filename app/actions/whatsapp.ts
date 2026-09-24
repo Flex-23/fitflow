@@ -5,7 +5,7 @@ import { requireRole } from "@/lib/auth/dal";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
 import { type CourseKind } from "@/lib/pdf/store";
-import { isWhatsAppEnabled, toInternational } from "@/lib/whatsapp";
+import { isWhatsAppEnabled, canSendCourses, toInternational } from "@/lib/whatsapp";
 import { getSetting } from "@/lib/settings";
 import {
   WA_HEARTBEAT_KEY,
@@ -73,7 +73,9 @@ export async function sendCourseToMember(
   courseId: string
 ): Promise<QueueCourseResult> {
   const user = await requireRole("CAPTAIN");
-  if (!isWhatsAppEnabled()) return { ok: false, reason: "disabled" };
+  // Paused, and refused here as well as hidden in the UI — a server action is
+  // reachable without the button that normally calls it.
+  if (!canSendCourses()) return { ok: false, reason: "disabled" };
 
   const course =
     kind === "training"

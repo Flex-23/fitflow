@@ -1,6 +1,25 @@
 import "server-only";
 import { nanoid } from "nanoid";
 import { prisma } from "@/lib/prisma";
+import type { LimitRule } from "@/lib/rate-limit";
+
+/**
+ * How long an invitation link stays usable after staff send it.
+ *
+ * Short on purpose: the member is standing at the desk, or on the phone,
+ * when it is sent. Ten minutes is enough to open it and add it to a home
+ * screen, and after that the message sitting in their WhatsApp history is
+ * just text — forwarding it, or reading it off a stolen phone, gets nobody
+ * in. If they miss the window the desk sends another; it costs one press.
+ */
+export const PORTAL_LINK_TTL_MS = 10 * 60_000;
+
+/** Throttle on the entry point, so nobody walks tokens through it. */
+export const PORTAL_RULE: LimitRule = {
+  max: 10,
+  windowMs: 10 * 60_000,
+  lockMs: 30 * 60_000,
+};
 
 /**
  * Everything a member sees on their own page, and the link that gets them
@@ -15,6 +34,8 @@ export type MemberPortal = {
   name: string;
   phone: string;
   gender: "MALE" | "FEMALE";
+  /** Compared against the session's own number; a mismatch means revoked. */
+  sessionEpoch: number;
   age: number | null;
   height: number | null;
   weight: number | null;
@@ -95,6 +116,7 @@ export async function getMemberPortal(memberId: string): Promise<MemberPortal | 
     name: member.name,
     phone: member.phone,
     gender: member.gender,
+    sessionEpoch: member.portalSessionEpoch,
     age: member.age,
     height: member.height,
     weight: member.weight,
@@ -123,20 +145,96 @@ export async function getMemberPortal(memberId: string): Promise<MemberPortal | 
 }
 
 /**
- * The member's personal link, minting the token on first use.
+ * Mint a fresh invitation token, replacing whatever came before.
  *
- * Not generated at registration: most members never need one, and an unused
- * credential sitting in the database is only a liability.
+ * Always a new token: if an older one is still live, pressing send again
+ * should kill it rather than leave two keys to the same door. Nothing is
+ * generated at registration — an unused credential sitting in the database
+ * is only a liability.
  */
-export async function getOrCreatePortalToken(memberId: string): Promise<string | null> {
-  const member = await prisma.member.findUnique({
-    where: { id: memberId },
-    select: { portalToken: true },
-  });
-  if (!member) return null;
-  if (member.portalToken) return member.portalToken;
-
-  const portalToken = nanoid(24);
-  await prisma.member.update({ where: { id: memberId }, data: { portalToken } });
+export async function issuePortalToken(memberId: string): Promise<string | null> {
+  const portalToken = nanoid(32);
+  try {
+    await prisma.member.update({
+      where: { id: memberId },
+      data: {
+        portalToken,
+        portalTokenExpiresAt: new Date(Date.now() + PORTAL_LINK_TTL_MS),
+      },
+    });
+  } catch {
+    // The member was deleted between the lookup and here.
+    return null;
+  }
   return portalToken;
+}
+
+export type PortalEntry =
+  | { ok: true; memberId: string; name: string; epoch: number }
+  | { ok: false };
+
+/**
+ * Trade an invitation token for the member behind it, and burn it.
+ *
+ * Single use is enforced by deleting the token in the same statement that
+ * reads it: `updateMany` with the token in the filter only touches a row if
+ * that exact token is still there, so two taps arriving together cannot both
+ * succeed. An expired token is treated exactly like a wrong one.
+ */
+export async function consumePortalToken(token: string): Promise<PortalEntry> {
+  const member = await prisma.member.findUnique({
+    where: { portalToken: token },
+    select: { id: true, name: true, portalTokenExpiresAt: true, portalSessionEpoch: true },
+  });
+  if (!member) return { ok: false };
+
+  if (!member.portalTokenExpiresAt || member.portalTokenExpiresAt.getTime() < Date.now()) {
+    // Clear it on the way out so a dead token stops occupying the index.
+    await prisma.member.updateMany({
+      where: { id: member.id, portalToken: token },
+      data: { portalToken: null, portalTokenExpiresAt: null },
+    });
+    return { ok: false };
+  }
+
+  const { count } = await prisma.member.updateMany({
+    where: { id: member.id, portalToken: token },
+    data: {
+      portalToken: null,
+      portalTokenExpiresAt: null,
+      portalActivatedAt: new Date(),
+    },
+  });
+  // Someone else got there first — the same link opened twice.
+  if (count === 0) return { ok: false };
+
+  return {
+    ok: true,
+    memberId: member.id,
+    name: member.name,
+    epoch: member.portalSessionEpoch,
+  };
+}
+
+/**
+ * Cut off every device currently signed in as this member.
+ *
+ * The session cookie is self-contained, so it cannot be deleted from here —
+ * instead the number it was signed with moves on, and every cookie carrying
+ * the old one stops verifying on the next page load.
+ */
+export async function revokePortalSessions(memberId: string): Promise<boolean> {
+  try {
+    await prisma.member.update({
+      where: { id: memberId },
+      data: {
+        portalSessionEpoch: { increment: 1 },
+        portalToken: null,
+        portalTokenExpiresAt: null,
+      },
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }

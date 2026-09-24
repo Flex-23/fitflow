@@ -35,7 +35,7 @@ import {
   type Gender,
 } from "@/components/reception/gender-fields";
 import { CardNumberInput } from "@/components/reception/card-number-input";
-import { PortalLinkButton } from "@/components/reception/portal-link-button";
+import { PortalLinkButton, RevokeDevicesButton } from "@/components/portal-link-button";
 import { emptyState } from "@/lib/action-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -458,10 +458,13 @@ function MemberDetails({
       </div>
 
       <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
-        <Button type="button" variant="soft-destructive" onClick={onDelete}>
-          <Trash2 className="size-4" />
-          {t.deleteMember}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="soft-destructive" onClick={onDelete}>
+            <Trash2 className="size-4" />
+            {t.deleteMember}
+          </Button>
+          <RevokeDevicesButton memberId={member.id} dict={dict} />
+        </div>
         <div className="flex flex-col-reverse gap-2 sm:flex-row">
           <PortalLinkButton memberId={member.id} dict={dict} />
           <Button type="button" variant="outline" onClick={onEdit}>

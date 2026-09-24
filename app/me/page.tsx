@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { CalendarClock, Dumbbell, FileText, Salad, UserRound } from "lucide-react";
-import { prisma } from "@/lib/prisma";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
 import { formatDate } from "@/lib/i18n/format";
-import { getMemberSession, createMemberSession } from "@/lib/member-session";
+import { getMemberSession } from "@/lib/member-session";
 import { getMemberPortal } from "@/lib/member-portal";
 import { Brand } from "@/components/brand";
 import { BrandWatermark } from "@/components/brand-watermark";
@@ -13,43 +12,46 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/reception/status-badge";
 
-export const metadata: Metadata = { title: "My membership" };
+export const metadata: Metadata = {
+  title: "My membership",
+  // Personal, and never useful in a search result.
+  robots: { index: false, follow: false },
+};
 
 /**
  * The member's own page — the whole member side of the app.
  *
- * Reached from the personal link sent over WhatsApp (`/me?k=…`), which starts
- * a session so the icon on their home screen opens straight here afterwards.
- * Read-only by design: nothing on this page can change gym data.
+ * Reached from the personal link sent over WhatsApp, which is swapped for a
+ * session by `/me/enter` before anything here runs. Read-only by design:
+ * nothing on this page can change gym data.
  */
 export default async function MemberPage({
   searchParams,
 }: {
-  searchParams: Promise<{ k?: string }>;
+  searchParams: Promise<{ k?: string; e?: string }>;
 }) {
   const locale = await getLocale();
   const dict = await getDictionary(locale);
   const t = dict.portal;
-  const { k } = await searchParams;
+  const { k, e } = await searchParams;
 
-  // A token in the address signs this phone in, then drops out of the URL so
-  // it stops being shared by a screenshot or a pasted link.
-  if (k) {
-    const member = await prisma.member.findUnique({
-      where: { portalToken: k },
-      select: { id: true, name: true },
-    });
-    if (member) {
-      await createMemberSession(member.id, member.name);
-      redirect("/me");
-    }
-  }
+  // Links issued before the entry route existed still point here. Hand them
+  // over rather than let them fail.
+  if (k) redirect(`/me/enter?k=${encodeURIComponent(k)}`);
 
   const session = await getMemberSession();
-  if (!session) return <Locked title={t.signedOut} body={t.signedOutBody} />;
+  if (!session) {
+    if (e === "locked") return <Locked title={t.tooMany} body={t.tooManyBody} />;
+    return <Locked title={t.linkExpired} body={t.linkExpiredBody} />;
+  }
 
   const me = await getMemberPortal(session.memberId);
-  if (!me) return <Locked title={t.signedOut} body={t.signedOutBody} />;
+  if (!me) return <Locked title={t.linkExpired} body={t.linkExpiredBody} />;
+
+  // The gym revoked this member's devices after the session was issued.
+  if (me.sessionEpoch !== session.epoch) {
+    return <Locked title={t.revoked} body={t.revokedBody} />;
+  }
 
   const sub = me.subscription;
   const running = sub && (sub.status === "ACTIVE" || sub.status === "FROZEN") && sub.daysLeft >= 0;

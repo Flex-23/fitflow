@@ -116,8 +116,14 @@ const en = {
     deferred: "Deferred",
   },
   reception: {
+    revokeDevices: "Sign out devices",
+    revokeDevicesHelp:
+      "Ends every session this member has open — for a lost or stolen phone.",
+    revokeDevicesConfirm: "Sign this member out everywhere?",
+    revokeDevicesDone: "Signed out. Send a new link when they need it again.",
     sendAppLink: "Send app link",
-    appLinkSent: "WhatsApp is opening with the link ready to send.",
+    appLinkSent:
+      "WhatsApp is opening with the link ready. It works once, for {n} minutes — send it now.",
     appLinkCopied: "Link copied",
     appLinkNoPhone: "This member has no phone number.",
     appLinkLocal:
@@ -592,6 +598,7 @@ const en = {
     RESTORE_BACKUP: "Restored a backup",
     SEND_COURSE: "Sent a course on WhatsApp",
     SEND_PORTAL_LINK: "Sent a member their app link",
+    REVOKE_PORTAL_ACCESS: "Signed a member out of their devices",
   },
   videos: {
     title: "Videos library",
@@ -627,6 +634,7 @@ const en = {
     hiddenLinkNote: "The real file location is never exposed.",
   },
   captain: {
+    portalReady: "Send the app link to",
     selectMember: "Select member",
     searchMember: "Search by name or phone…",
     noMemberSelected: "No member selected",
@@ -748,6 +756,13 @@ const en = {
       "FitFlow needs the internet to show your details. Try again once you are back online.",
   },
   portal: {
+    linkExpired: "This link has expired",
+    linkExpiredBody:
+      "A link works once, and only for ten minutes. Ask the gym to send you a new one.",
+    tooMany: "Too many attempts",
+    tooManyBody: "Try again in half an hour, or ask the gym for a new link.",
+    revoked: "This device was signed out",
+    revokedBody: "Ask the gym to send you a new link to sign in again.",
     title: "My membership",
     subscription: "Subscription",
     daysLeft: "{n} days left",
@@ -758,8 +773,6 @@ const en = {
     trainingCourse: "Training course",
     nutritionCourse: "Nutrition course",
     noCourses: "No courses yet — your coach will send one.",
-    signedOut: "This link is no longer valid",
-    signedOutBody: "Ask the gym to send you your link again on WhatsApp.",
     footerNote: "Tap an exercise inside a course to watch its video.",
   },
   watch: {

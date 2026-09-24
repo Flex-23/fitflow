@@ -4,7 +4,7 @@ import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { purgeExpiredCourses } from "@/lib/courses";
-import { isWhatsAppEnabled } from "@/lib/whatsapp";
+import { canSendCourses } from "@/lib/whatsapp";
 import type { TrainingCourseDTO } from "@/app/actions/courses";
 import { PageHeader } from "@/components/layout/page-header";
 import { TrainingBuilder } from "@/components/captain/training-builder";
@@ -68,7 +68,7 @@ export default async function TrainingPage() {
         locale={locale}
         templates={templates}
         videos={videos}
-        whatsappEnabled={isWhatsAppEnabled()}
+        whatsappEnabled={canSendCourses()}
       />
     </div>
   );

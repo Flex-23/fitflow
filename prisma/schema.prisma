@@ -82,6 +82,7 @@ enum ActivityAction {
   RESTORE_BACKUP
   SEND_COURSE
   SEND_PORTAL_LINK
+  REVOKE_PORTAL_ACCESS
 }
 
 enum NotificationType {
@@ -146,10 +147,20 @@ model Member {
   // Low 24 bits of cardNumber — what the turnstile's Wiegand-26 reader
   // reports to the C3 panel. This is the value the gate bridge looks up.
   cardWiegand Int?
-  // Credential for the member's own page. Sent to them once over WhatsApp;
-  // opening it starts a session, so the phone never has to type anything.
-  // Generated the first time a link is asked for, not at registration.
-  portalToken String? @unique
+  // One-shot credential for the member's own page, sent over WhatsApp.
+  // It is minted when staff press send, dies ten minutes later, and is
+  // destroyed the moment it is used — so the message left sitting in a chat
+  // is worthless to anyone who reads it afterwards. Null means there is no
+  // live invitation: either it was used, it expired, or none was ever sent.
+  portalToken          String?   @unique
+  portalTokenExpiresAt DateTime?
+  // When this member last activated a link; lets the desk see at a glance
+  // who still needs an invitation.
+  portalActivatedAt    DateTime?
+  // Bumped to invalidate every session already issued to this member — the
+  // way back in after a lost or stolen phone. Sessions carry this number and
+  // are refused once it moves on.
+  portalSessionEpoch   Int       @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
