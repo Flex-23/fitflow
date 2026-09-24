@@ -1,4 +1,4 @@
-import { mkdir, rm, stat } from "node:fs/promises";
+import { mkdir, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import type { WASocket } from "@whiskeysockets/baileys";
 import type { ILogger } from "@whiskeysockets/baileys/lib/Utils/logger.js";
@@ -35,6 +35,8 @@ type ClientState = {
   me: string | null;
   lastError: string | null;
   starting: Promise<void> | null;
+  /** Set while a close is deliberate, so it is not undone by a reconnect. */
+  stopped: boolean;
 };
 
 // Survives hot reloads in dev, exactly like the Prisma client.
@@ -49,18 +51,27 @@ const state: ClientState =
     me: null,
     lastError: null,
     starting: null,
+    stopped: false,
   });
 
 function authDir(): string {
   return process.env.WHATSAPP_AUTH_DIR || "./storage/whatsapp-auth";
 }
 
-/** True once a QR scan has left credentials on disk. */
+/**
+ * True once a QR scan has actually paired this device.
+ *
+ * Not the same as "creds.json exists": Baileys writes that file the moment a
+ * socket is opened, long before anyone scans anything, so its presence says
+ * only that we have tried. `registered` is what it sets once the pairing went
+ * through, and that is the question every caller here is really asking.
+ */
 export async function hasCredentials(): Promise<boolean> {
   try {
-    await stat(path.join(authDir(), "creds.json"));
-    return true;
+    const raw = await readFile(path.join(authDir(), "creds.json"), "utf8");
+    return JSON.parse(raw)?.registered === true;
   } catch {
+    // Missing, unreadable or half-written — either way, not paired.
     return false;
   }
 }
@@ -110,6 +121,7 @@ export async function connect(): Promise<void> {
     try {
       state.status = "connecting";
       state.lastError = null;
+      state.stopped = false;
 
       const { makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, DisconnectReason } =
         await import("@whiskeysockets/baileys");
@@ -157,6 +169,10 @@ export async function connect(): Promise<void> {
             state.lastError = "logged_out";
             void rm(authDir(), { recursive: true, force: true });
             onLinkChange?.(null);
+          } else if (state.stopped) {
+            // We closed it ourselves — a pairing window that ran out.
+            state.status = "disconnected";
+            state.lastError = null;
           } else {
             state.status = "disconnected";
             state.lastError = code ? `close_${code}` : "closed";
@@ -197,6 +213,26 @@ export async function ensureConnected(waitMs = 20_000): Promise<boolean> {
     await new Promise((r) => setTimeout(r, 250));
   }
   return status() === "connected";
+}
+
+/**
+ * Close a socket that is showing a QR code, without touching credentials.
+ *
+ * A pairing code is a key to the account, so it exists only while someone is
+ * standing there with the phone. When that window closes the socket goes with
+ * it, otherwise Baileys keeps minting fresh codes at nobody.
+ */
+export async function stopPairing(): Promise<void> {
+  if (state.status !== "qr" && state.status !== "connecting") return;
+  state.stopped = true;
+  try {
+    state.sock?.end(undefined);
+  } catch {
+    // Already gone; the state below is what matters.
+  }
+  state.sock = null;
+  state.qr = null;
+  state.status = "disconnected";
 }
 
 /** Unlink this device and forget the stored credentials. */

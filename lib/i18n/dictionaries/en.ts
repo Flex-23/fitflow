@@ -265,11 +265,13 @@ const en = {
     memberDeleted: "Member deleted",
   },
   manager: {
+    whatsappScanCreate: "Create a QR code",
+    whatsappScanAgain: "Create a new code",
+    whatsappScanExpires: "This code stops working in {n}s.",
     whatsappScanTitle: "Scan to link the gym's number",
     whatsappScanSteps:
       "On the gym phone: WhatsApp → Settings → Linked devices → Link a device, then point it at this code.",
     whatsappScanWaiting: "Waiting for a code…",
-    whatsappScanRotates: "The code refreshes every few seconds on its own.",
     notificationsTitle: "Notifications",
     notificationsSubtitle: "Everything that needs your attention.",
     expiringToday: "Expiring today",
@@ -381,7 +383,7 @@ const en = {
     whatsappWorkerOfflineHelp:
       "The sender on the gym computer is not running. Start it there with npm run whatsapp — queued courses go out as soon as it comes back.",
     whatsappPairHelp:
-      "No number paired yet. On the gym computer run npm run whatsapp and scan the QR code it prints with the gym phone.",
+      "No number is linked yet. Make sure npm run whatsapp is running on the gym computer, then create a code here.",
     whatsappQueued: "Waiting to send",
     whatsappFailed: "Failed",
     whatsappLastSeen: "Worker last seen",
@@ -397,8 +399,6 @@ const en = {
     whatsappStep1: "On the gym phone open WhatsApp → Settings → Linked devices.",
     whatsappStep2: "Tap “Link a device” and scan this code.",
     whatsappStep3: "If the code expires, press “Refresh code”.",
-    whatsappUnofficial:
-      "This link uses the WhatsApp Web protocol, which is not an official API — use a dedicated gym number rather than a personal one, as WhatsApp may ban numbers that send heavily.",
     settingsSaved: "Settings saved",
   },
   gate: {

@@ -265,11 +265,13 @@ const ar: Dictionary = {
     memberDeleted: "تم حذف العضو",
   },
   manager: {
+    whatsappScanCreate: "إنشاء رمز QR",
+    whatsappScanAgain: "إنشاء رمز جديد",
+    whatsappScanExpires: "ينتهي هذا الرمز خلال {n} ثانية.",
     whatsappScanTitle: "امسح الرمز لربط رقم الصالة",
     whatsappScanSteps:
       "من هاتف الصالة: واتساب ← الإعدادات ← الأجهزة المرتبطة ← ربط جهاز، ثم وجّهه إلى هذا الرمز.",
     whatsappScanWaiting: "بانتظار الرمز…",
-    whatsappScanRotates: "الرمز يتجدد تلقائياً كل بضع ثوانٍ.",
     notificationsTitle: "الإشعارات",
     notificationsSubtitle: "كل ما يحتاج انتباهك.",
     expiringToday: "تنتهي اليوم",
@@ -381,7 +383,7 @@ const ar: Dictionary = {
     whatsappWorkerOfflineHelp:
       "برنامج الإرسال على كمبيوتر الصالة غير شغّال. شغّله هناك بالأمر npm run whatsapp — والكورسات المنتظرة سترسَل فور عودته.",
     whatsappPairHelp:
-      "لم يُربط أي رقم بعد. على كمبيوتر الصالة شغّل npm run whatsapp وامسح رمز QR الذي يظهر بهاتف الصالة.",
+      "لم يُربط أي رقم بعد. تأكّد أن npm run whatsapp يعمل على كمبيوتر الصالة، ثم أنشئ رمزاً من هنا.",
     whatsappQueued: "بانتظار الإرسال",
     whatsappFailed: "فشل",
     whatsappLastSeen: "آخر ظهور للعامل",
@@ -397,8 +399,6 @@ const ar: Dictionary = {
     whatsappStep1: "افتح واتساب على هاتف الصالة ← الإعدادات ← الأجهزة المرتبطة.",
     whatsappStep2: "اضغط «ربط جهاز» وامسح هذا الكود.",
     whatsappStep3: "إن انتهت صلاحية الكود اضغط «تحديث الكود».",
-    whatsappUnofficial:
-      "يعمل هذا الربط عبر بروتوكول واتساب ويب وهو غير رسمي — استخدم رقماً مخصّصاً للصالة وليس رقمك الشخصي، فقد يحظر واتساب الأرقام التي ترسل كثيراً.",
     settingsSaved: "تم حفظ الإعدادات",
   },
   gate: {

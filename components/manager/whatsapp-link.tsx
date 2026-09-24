@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Clock,
   Loader2,
+  QrCode,
   RefreshCw,
   Send,
   Trash2,
@@ -14,10 +15,12 @@ import {
 } from "lucide-react";
 import {
   getWhatsAppStatus,
+  startPairing,
   retryFailedSends,
   clearFailedSends,
   type WaStatus,
 } from "@/app/actions/whatsapp";
+import { PAIR_WINDOW_MS } from "@/lib/whatsapp/worker-state";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/i18n/format";
@@ -43,23 +46,40 @@ export function WhatsAppLink({
   const t = dict.manager;
   const [state, setState] = useState<WaStatus>(initial);
   const [pending, start] = useTransition();
+  // Counted down here so the page does not have to poll once a second just
+  // to show a number ticking.
+  const [secondsLeft, setSecondsLeft] = useState(() => Math.ceil(initial.pairingLeftMs / 1000));
+  const [asked, setAsked] = useState(false);
+
+  const open = secondsLeft > 0;
+  // "Try again" rather than "create a code": the difference is only worth
+  // saying to someone who has just watched one run out.
+  const expired = asked && !open;
 
   // The worker reports in every 30s, but WhatsApp rotates a pairing code
-  // every 20 — so while one is on screen this follows much more closely.
-  const pairing = !state.number;
+  // every few seconds — so while a window is open this follows much closer.
   useEffect(() => {
     const id = setInterval(
       async () => {
         try {
-          setState(await getWhatsAppStatus());
+          const next = await getWhatsAppStatus();
+          setState(next);
+          setSecondsLeft(Math.ceil(next.pairingLeftMs / 1000));
         } catch {
           // A failed poll is not worth a toast; the next one will tell.
         }
       },
-      pairing ? 4_000 : 15_000
+      open ? 2_000 : 15_000
     );
     return () => clearInterval(id);
-  }, [pairing]);
+  }, [open]);
+
+  // The clock between polls.
+  useEffect(() => {
+    if (!open) return;
+    const id = setInterval(() => setSecondsLeft((n) => Math.max(0, n - 1)), 1000);
+    return () => clearInterval(id);
+  }, [open]);
 
   if (!state.enabled) {
     return (
@@ -72,6 +92,22 @@ export function WhatsAppLink({
 
   const refresh = () =>
     start(async () => {
+      const next = await getWhatsAppStatus();
+      setState(next);
+      setSecondsLeft(Math.ceil(next.pairingLeftMs / 1000));
+    });
+
+  const createCode = () =>
+    start(async () => {
+      const res = await startPairing();
+      if (!res.ok) {
+        toast.error(dict.common.somethingWrong);
+        return;
+      }
+      setAsked(true);
+      // Open the window on screen straight away; the code itself follows as
+      // soon as the worker has made one.
+      setSecondsLeft(Math.ceil(PAIR_WINDOW_MS / 1000));
       setState(await getWhatsAppStatus());
     });
 
@@ -100,30 +136,45 @@ export function WhatsAppLink({
       </div>
 
       {/* Pairing: the code is scanned from here, not from the gym computer's
-          screen — that machine usually runs headless under the desk. */}
+          screen — that machine usually runs headless under the desk. It is
+          made on request and only lives a minute, so there is never a live
+          key to the account sitting on a page nobody is watching. */}
       {!state.number && (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-card/60 p-5 text-center">
           <p className="text-sm font-semibold">{t.whatsappScanTitle}</p>
           <p className="max-w-sm text-xs text-muted-foreground">{t.whatsappScanSteps}</p>
-          {state.qrDataUrl ? (
-            /* eslint-disable-next-line @next/next/no-img-element -- a data URL,
-               already the right size; next/image would only add a round trip. */
-            <img
-              src={state.qrDataUrl}
-              alt={t.whatsappScanTitle}
-              className="size-56 rounded-xl bg-white p-2"
-              width={224}
-              height={224}
-            />
+
+          {open ? (
+            <>
+              {state.qrDataUrl ? (
+                /* eslint-disable-next-line @next/next/no-img-element -- a data
+                   URL, already the right size; next/image would only add a
+                   round trip. */
+                <img
+                  src={state.qrDataUrl}
+                  alt={t.whatsappScanTitle}
+                  className="size-56 rounded-xl bg-white p-2"
+                  width={224}
+                  height={224}
+                />
+              ) : (
+                <div className="grid size-56 place-items-center rounded-xl border border-dashed border-border">
+                  <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="size-4 animate-spin" />
+                    {state.online ? t.whatsappScanWaiting : t.whatsappWorkerOfflineHelp}
+                  </span>
+                </div>
+              )}
+              <p className="text-[11px] tabular-nums text-muted-foreground">
+                {t.whatsappScanExpires.replace("{n}", String(secondsLeft))}
+              </p>
+            </>
           ) : (
-            <div className="grid size-56 place-items-center rounded-xl border border-dashed border-border">
-              <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" />
-                {state.online ? t.whatsappScanWaiting : t.whatsappWorkerOfflineHelp}
-              </span>
-            </div>
+            <Button variant="brand" onClick={createCode} disabled={pending}>
+              <QrCode className="size-4" />
+              {expired ? t.whatsappScanAgain : t.whatsappScanCreate}
+            </Button>
           )}
-          <p className="text-[11px] text-muted-foreground">{t.whatsappScanRotates}</p>
         </div>
       )}
 
@@ -182,11 +233,6 @@ export function WhatsAppLink({
           {state.number ? t.whatsappWorkerOfflineHelp : t.whatsappPairHelp}
         </p>
       )}
-
-      <p className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-xs">
-        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
-        {t.whatsappUnofficial}
-      </p>
     </div>
   );
 }

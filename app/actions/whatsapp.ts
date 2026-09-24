@@ -14,8 +14,10 @@ import {
   WA_LINKED_AT_KEY,
   WA_QR_KEY,
   WA_QR_AT_KEY,
+  WA_PAIR_UNTIL_KEY,
   WORKER_STALE_MS,
   QR_STALE_MS,
+  PAIR_WINDOW_MS,
 } from "@/lib/whatsapp/worker-state";
 
 /**
@@ -44,25 +46,34 @@ export type WaStatus = {
    * already rotated, because showing a dead code is worse than showing none.
    */
   qrDataUrl: string | null;
+  /** Milliseconds left on the open pairing window; 0 when none is open. */
+  pairingLeftMs: number;
 };
 
 /** What the Settings page shows about WhatsApp delivery. Manager only. */
 export async function getWhatsAppStatus(): Promise<WaStatus> {
   await requireRole("MANAGER");
 
-  const [number, linkedAt, lastSeen, qr, qrAt, pending, failed] = await Promise.all([
+  const [number, linkedAt, lastSeen, qr, qrAt, pairUntil, pending, failed] = await Promise.all([
     getSetting(WA_NUMBER_KEY, ""),
     getSetting(WA_LINKED_AT_KEY, ""),
     getSetting(WA_HEARTBEAT_KEY, ""),
     getSetting(WA_QR_KEY, ""),
     getSetting(WA_QR_AT_KEY, ""),
+    getSetting(WA_PAIR_UNTIL_KEY, ""),
     prisma.whatsAppOutbox.count({ where: { status: "PENDING" } }),
     prisma.whatsAppOutbox.count({ where: { status: "FAILED" } }),
   ]);
 
+  const now = Date.now();
   const seen = lastSeen ? Date.parse(lastSeen) : NaN;
   const madeAt = qrAt ? Date.parse(qrAt) : NaN;
-  const fresh = qr && Number.isFinite(madeAt) && Date.now() - madeAt < QR_STALE_MS;
+  const until = pairUntil ? Date.parse(pairUntil) : NaN;
+
+  const pairingLeftMs = Number.isFinite(until) ? Math.max(0, until - now) : 0;
+  // A code outlives neither its own rotation nor the window it was made in.
+  const fresh =
+    qr && pairingLeftMs > 0 && Number.isFinite(madeAt) && now - madeAt < QR_STALE_MS;
 
   // Drawn here rather than in the browser: the page needs an image, not a QR
   // library, and the payload never has to reach the client at all.
@@ -73,14 +84,44 @@ export async function getWhatsAppStatus(): Promise<WaStatus> {
 
   return {
     enabled: isWhatsAppEnabled(),
-    online: Number.isFinite(seen) && Date.now() - seen < WORKER_STALE_MS,
+    online: Number.isFinite(seen) && now - seen < WORKER_STALE_MS,
     number: number || null,
     linkedAt: linkedAt || null,
     lastSeen: lastSeen || null,
     pending,
     failed,
     qrDataUrl,
+    pairingLeftMs,
   };
+}
+
+/**
+ * Ask the worker for a pairing code, and give it a minute to be scanned.
+ *
+ * Nothing is generated until this is pressed. The worker opens a socket while
+ * the window is open and closes it again when it passes, so a key to the
+ * gym's WhatsApp account exists only while someone is there to use it.
+ */
+export async function startPairing(): Promise<{ ok: boolean }> {
+  await requireRole("MANAGER");
+  const until = new Date(Date.now() + PAIR_WINDOW_MS).toISOString();
+
+  await prisma.$transaction([
+    prisma.setting.upsert({
+      where: { key: WA_PAIR_UNTIL_KEY },
+      update: { value: until },
+      create: { key: WA_PAIR_UNTIL_KEY, value: until },
+    }),
+    // Any code left from a previous window is stale; clear it so the page
+    // shows "waiting" rather than one that can no longer be scanned.
+    prisma.setting.upsert({
+      where: { key: WA_QR_KEY },
+      update: { value: "" },
+      create: { key: WA_QR_KEY, value: "" },
+    }),
+  ]);
+
+  return { ok: true };
 }
 
 export type QueueCourseResult =

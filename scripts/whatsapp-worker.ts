@@ -25,6 +25,7 @@ import {
   WA_NUMBER_KEY,
   WA_QR_KEY,
   WA_QR_AT_KEY,
+  WA_PAIR_UNTIL_KEY,
 } from "../lib/whatsapp/worker-state";
 
 const POLL_MS = Math.max(1000, Number(process.env.WHATSAPP_POLL_MS || 5000));
@@ -42,6 +43,28 @@ async function setSetting(key: string, value: string) {
   await prisma.setting
     .upsert({ where: { key }, update: { value }, create: { key, value } })
     .catch((e) => console.error(`[${stamp()}] could not write ${key}:`, e.message));
+}
+
+async function getSetting(key: string): Promise<string> {
+  try {
+    return (await prisma.setting.findUnique({ where: { key } }))?.value ?? "";
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Is a pairing window open right now?
+ *
+ * Read fresh on every use rather than cached: the window is opened from the
+ * website, which this process has no other way of hearing about.
+ */
+let pairingUntil = 0;
+async function readPairingWindow(): Promise<boolean> {
+  const raw = await getSetting(WA_PAIR_UNTIL_KEY);
+  const until = raw ? Date.parse(raw) : NaN;
+  pairingUntil = Number.isFinite(until) ? until : 0;
+  return pairingUntil > Date.now();
 }
 
 /**
@@ -95,6 +118,10 @@ const PAIR_HTML = `<!doctype html>
 </html>`;
 
 async function publishQr(qr: string) {
+  // Codes minted after the window closed belong to nobody — drop them rather
+  // than leave a live key to the account sitting in the database.
+  if (pairingUntil <= Date.now()) return;
+
   // The database copy is what the Settings page shows, so it goes first.
   await setSetting(WA_QR_KEY, qr);
   await setSetting(WA_QR_AT_KEY, new Date().toISOString());
@@ -255,13 +282,22 @@ async function main() {
     await setSetting(WA_LINKED_AT_KEY, me ? new Date().toISOString() : "");
     // A live QR is a key to the account — do not leave one lying on disk.
     await clearQr();
+    // The window has served its purpose; close it rather than let it run out.
+    await setSetting(WA_PAIR_UNTIL_KEY, "");
+    pairingUntil = 0;
     console.log(me ? `[${stamp()}] linked as +${me}` : `[${stamp()}] number unlinked`);
   });
 
-  if (!(await wa.hasCredentials())) {
-    console.log(`[${stamp()}] no paired number yet — a QR code will appear shortly`);
+  // A paired number comes back up by itself. An unpaired one waits: opening a
+  // socket would only mint QR codes nobody is looking at, so pairing starts
+  // when someone asks for it on the Settings page.
+  if (await wa.hasCredentials()) {
+    void wa.connect();
+  } else {
+    console.log(`[${stamp()}] no paired number — waiting for a request from Settings`);
+    await setSetting(WA_QR_KEY, "");
+    await setSetting(WA_QR_AT_KEY, "");
   }
-  void wa.connect();
 
   let lastBeat = 0;
   for (;;) {
@@ -271,9 +307,22 @@ async function main() {
       await setSetting(WA_HEARTBEAT_KEY, new Date().toISOString());
     }
 
+    // Follow the pairing window the website opens: a socket while it is
+    // open, none once it closes.
+    const pairing = await readPairingWindow();
+    if (!(await wa.hasCredentials())) {
+      if (pairing) {
+        void wa.connect();
+      } else if (wa.getStatus().status === "qr") {
+        await wa.stopPairing();
+        await clearQr();
+        console.log(`[${stamp()}] pairing window closed`);
+      }
+    }
+
     // Nothing can go out until the phone is paired and the socket is up.
     if (!(await wa.ensureConnected(5_000))) {
-      await sleep(POLL_MS);
+      await sleep(pairing ? 1000 : POLL_MS);
       continue;
     }
 
