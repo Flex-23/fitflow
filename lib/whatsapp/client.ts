@@ -218,6 +218,24 @@ export type SendResult =
   | { sent: true }
   | { sent: false; reason: "not_connected" | "not_on_whatsapp" | "failed"; detail?: string };
 
+/** Send a plain text message to an international number. */
+export async function sendText(opts: { to: string; body: string }): Promise<SendResult> {
+  const sock = state.sock;
+  if (!sock || state.status !== "connected") return { sent: false, reason: "not_connected" };
+
+  try {
+    const [check] = (await sock.onWhatsApp(opts.to)) ?? [];
+    if (!check?.exists) return { sent: false, reason: "not_on_whatsapp" };
+
+    await sock.sendMessage(check.jid, { text: opts.body });
+    return { sent: true };
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : undefined;
+    console.error("[whatsapp] send failed", e);
+    return { sent: false, reason: "failed", detail };
+  }
+}
+
 /** Send a PDF as a real document attachment to an international number. */
 export async function sendDocument(opts: {
   /** Digits only, country code included (e.g. 9647701234567). */

@@ -10,13 +10,10 @@ import type { Dictionary } from "@/lib/i18n";
 /**
  * Sends a member the link to their own page over WhatsApp.
  *
- * The chat opens in the staff member's own WhatsApp with the message already
- * written; they press send. A person stays in the loop, and it works whether
- * or not the gym computer's WhatsApp worker is running.
- *
- * The link is good for one opening and ten minutes, so this is pressed while
- * the member is there with their phone — which is why the confirmation says
- * so rather than quietly succeeding.
+ * Normally nothing visible happens: the message is queued and the gym's own
+ * number sends it a moment later. Only when that number is not linked does
+ * this fall back to opening a chat with the message ready, so the gym is
+ * never left without a way to get the link out.
  */
 export function PortalLinkButton({
   memberId,
@@ -41,6 +38,11 @@ export function PortalLinkButton({
         return;
       }
 
+      if (res.sent === "queued") {
+        toast.success(t.appLinkQueued);
+        return;
+      }
+
       // A localhost link is useless on a phone; say so rather than let
       // someone send it and wonder why nothing opens.
       if (res.local) toast.warning(t.appLinkLocal);
@@ -52,7 +54,7 @@ export function PortalLinkButton({
         // message still carries the link, which is the point.
       }
 
-      toast.success(t.appLinkSent.replace("{n}", String(res.minutes)), { duration: 8000 });
+      toast.info(t.appLinkManual, { duration: 8000 });
 
       // wa.me rather than the whatsapp:// scheme: it hands over to the
       // desktop app when one is installed and falls back to WhatsApp Web

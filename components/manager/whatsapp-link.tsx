@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
+  Loader2,
   RefreshCw,
   Send,
   Trash2,
@@ -43,17 +44,22 @@ export function WhatsAppLink({
   const [state, setState] = useState<WaStatus>(initial);
   const [pending, start] = useTransition();
 
-  // The worker reports in every 30s; follow it while the page is open.
+  // The worker reports in every 30s, but WhatsApp rotates a pairing code
+  // every 20 — so while one is on screen this follows much more closely.
+  const pairing = !state.number;
   useEffect(() => {
-    const id = setInterval(async () => {
-      try {
-        setState(await getWhatsAppStatus());
-      } catch {
-        // A failed poll is not worth a toast; the next one will tell.
-      }
-    }, 15_000);
+    const id = setInterval(
+      async () => {
+        try {
+          setState(await getWhatsAppStatus());
+        } catch {
+          // A failed poll is not worth a toast; the next one will tell.
+        }
+      },
+      pairing ? 4_000 : 15_000
+    );
     return () => clearInterval(id);
-  }, []);
+  }, [pairing]);
 
   if (!state.enabled) {
     return (
@@ -92,6 +98,34 @@ export function WhatsAppLink({
           {dict.common.search}
         </Button>
       </div>
+
+      {/* Pairing: the code is scanned from here, not from the gym computer's
+          screen — that machine usually runs headless under the desk. */}
+      {!state.number && (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-card/60 p-5 text-center">
+          <p className="text-sm font-semibold">{t.whatsappScanTitle}</p>
+          <p className="max-w-sm text-xs text-muted-foreground">{t.whatsappScanSteps}</p>
+          {state.qrDataUrl ? (
+            /* eslint-disable-next-line @next/next/no-img-element -- a data URL,
+               already the right size; next/image would only add a round trip. */
+            <img
+              src={state.qrDataUrl}
+              alt={t.whatsappScanTitle}
+              className="size-56 rounded-xl bg-white p-2"
+              width={224}
+              height={224}
+            />
+          ) : (
+            <div className="grid size-56 place-items-center rounded-xl border border-dashed border-border">
+              <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" />
+                {state.online ? t.whatsappScanWaiting : t.whatsappWorkerOfflineHelp}
+              </span>
+            </div>
+          )}
+          <p className="text-[11px] text-muted-foreground">{t.whatsappScanRotates}</p>
+        </div>
+      )}
 
       <div className="grid gap-2 text-sm sm:grid-cols-3">
         <Tile label={t.whatsappQueued} value={String(state.pending)} icon={Clock} />

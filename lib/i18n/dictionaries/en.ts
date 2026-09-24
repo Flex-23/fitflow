@@ -116,14 +116,14 @@ const en = {
     deferred: "Deferred",
   },
   reception: {
+    appLinkQueued: "The app link is on its way to the member on WhatsApp.",
+    appLinkManual: "The gym's number is not linked — opening WhatsApp to send it by hand.",
     revokeDevices: "Sign out devices",
     revokeDevicesHelp:
       "Ends every session this member has open — for a lost or stolen phone.",
     revokeDevicesConfirm: "Sign this member out everywhere?",
     revokeDevicesDone: "Signed out. Send a new link when they need it again.",
     sendAppLink: "Send app link",
-    appLinkSent:
-      "WhatsApp is opening with the link ready. It works once, for {n} minutes — send it now.",
     appLinkCopied: "Link copied",
     appLinkNoPhone: "This member has no phone number.",
     appLinkLocal:
@@ -265,6 +265,11 @@ const en = {
     memberDeleted: "Member deleted",
   },
   manager: {
+    whatsappScanTitle: "Scan to link the gym's number",
+    whatsappScanSteps:
+      "On the gym phone: WhatsApp → Settings → Linked devices → Link a device, then point it at this code.",
+    whatsappScanWaiting: "Waiting for a code…",
+    whatsappScanRotates: "The code refreshes every few seconds on its own.",
     notificationsTitle: "Notifications",
     notificationsSubtitle: "Everything that needs your attention.",
     expiringToday: "Expiring today",
@@ -634,6 +639,8 @@ const en = {
     hiddenLinkNote: "The real file location is never exposed.",
   },
   captain: {
+    linkSent: "Saved, and the app link is on its way to the member.",
+    linkSendManually: "Saved. The link did not go out — send it from the panel below.",
     portalReady: "Send the app link to",
     selectMember: "Select member",
     searchMember: "Search by name or phone…",

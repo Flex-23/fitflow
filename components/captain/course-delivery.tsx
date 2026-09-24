@@ -1,13 +1,39 @@
 "use client";
 
+import { toast } from "sonner";
 import { WhatsAppSend } from "@/components/captain/whatsapp-send";
 import { PortalLinkButton } from "@/components/portal-link-button";
+import type { PortalLinkResult } from "@/lib/portal-delivery";
 import type { Dictionary } from "@/lib/i18n";
 
 /**
- * How a saved course reaches the member.
+ * Say what became of the link that went out with a saved course.
  *
- * Sending the PDF over WhatsApp is paused, so the normal route is now the
+ * Saving and sending are one action now, so the captain is told the outcome
+ * rather than asked to choose one. Anything other than "queued" leaves the
+ * delivery panel on screen, which is where the manual send lives.
+ */
+export function reportCourseLink(
+  link: PortalLinkResult | undefined,
+  dict: Dictionary
+): boolean {
+  const t = dict.captain;
+  if (link?.ok && link.sent === "queued") {
+    toast.success(t.linkSent);
+    return true;
+  }
+  if (link?.ok === false && link.reason === "no_phone") {
+    toast.warning(dict.reception.appLinkNoPhone);
+    return false;
+  }
+  toast.info(t.linkSendManually, { duration: 8000 });
+  return false;
+}
+
+/**
+ * How a saved course reaches the member, when the automatic send did not.
+ *
+ * Sending the PDF over WhatsApp is paused, so the normal route is the
  * member's own page: one personal link opens it, and the course sits there
  * with everything else. The PDF itself is still one press away for the
  * captain who wants to print or check it.

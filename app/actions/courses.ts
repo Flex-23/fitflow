@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
 import { trainingCourseSchema } from "@/schemas/course";
 import { purgeExpiredCourses, twoMonthsFromNow } from "@/lib/courses";
+import { sendCourseLink, type PortalLinkResult } from "@/lib/portal-delivery";
 
 export async function searchMembers(query: string) {
   await requireRole("CAPTAIN");
@@ -184,9 +185,14 @@ export async function getMemberTraining(
   return { member: toProfile(member, now), courses: courses.map(serializeCourse) };
 }
 
-export async function createTrainingCourse(
-  input: unknown
-): Promise<{ ok: boolean; id?: string; shareToken?: string; error?: string }> {
+export async function createTrainingCourse(input: unknown): Promise<{
+  ok: boolean;
+  id?: string;
+  shareToken?: string;
+  /** What happened to the member's link, sent alongside a real course. */
+  link?: PortalLinkResult;
+  error?: string;
+}> {
   const user = await requireRole("CAPTAIN");
   const parsed = trainingCourseSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "invalid" };
@@ -230,8 +236,19 @@ export async function createTrainingCourse(
     details: d.title ?? undefined,
   });
 
+  // A saved course is a course the member should be able to read, so the
+  // link to their page goes out with it — no second button, no decision for
+  // the captain to make. A failure here is not the course's failure, so it
+  // only changes what the screen reports.
+  const link = d.isTemplate ? null : await sendCourseLink(user.id, d.memberId!);
+
   revalidatePath("/training");
-  return { ok: true, id: course.id, shareToken: course.shareToken ?? undefined };
+  return {
+    ok: true,
+    id: course.id,
+    shareToken: course.shareToken ?? undefined,
+    link: link ?? undefined,
+  };
 }
 
 /** Replace a template's title and days in place (keeps its id). */

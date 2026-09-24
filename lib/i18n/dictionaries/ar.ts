@@ -118,13 +118,13 @@ const ar: Dictionary = {
     deferred: "آجل",
   },
   reception: {
+    appLinkQueued: "رابط التطبيق في طريقه إلى المشترك عبر واتساب.",
+    appLinkManual: "رقم الصالة غير مربوط — سيُفتح واتساب لإرساله يدوياً.",
     revokeDevices: "إخراج الأجهزة",
     revokeDevicesHelp: "ينهي كل جلسة مفتوحة لهذا المشترك — للهاتف المفقود أو المسروق.",
     revokeDevicesConfirm: "إخراج هذا المشترك من كل الأجهزة؟",
     revokeDevicesDone: "تم الإخراج. أرسل رابطاً جديداً عند الحاجة.",
     sendAppLink: "إرسال رابط التطبيق",
-    appLinkSent:
-      "سيُفتح واتساب والرابط جاهز. يعمل مرة واحدة ولمدة {n} دقائق — أرسله الآن.",
     appLinkCopied: "تم نسخ الرابط",
     appLinkNoPhone: "لا يوجد رقم هاتف لهذا المشترك.",
     appLinkLocal: "لا يملك التطبيق عنواناً عاماً بعد، لذا يعمل هذا الرابط على هذا الحاسوب فقط.",
@@ -265,6 +265,11 @@ const ar: Dictionary = {
     memberDeleted: "تم حذف العضو",
   },
   manager: {
+    whatsappScanTitle: "امسح الرمز لربط رقم الصالة",
+    whatsappScanSteps:
+      "من هاتف الصالة: واتساب ← الإعدادات ← الأجهزة المرتبطة ← ربط جهاز، ثم وجّهه إلى هذا الرمز.",
+    whatsappScanWaiting: "بانتظار الرمز…",
+    whatsappScanRotates: "الرمز يتجدد تلقائياً كل بضع ثوانٍ.",
     notificationsTitle: "الإشعارات",
     notificationsSubtitle: "كل ما يحتاج انتباهك.",
     expiringToday: "تنتهي اليوم",
@@ -634,6 +639,8 @@ const ar: Dictionary = {
     hiddenLinkNote: "لا يتم كشف الموقع الحقيقي للملف أبداً.",
   },
   captain: {
+    linkSent: "تم الحفظ، ورابط التطبيق في طريقه إلى المشترك.",
+    linkSendManually: "تم الحفظ. لم يُرسل الرابط — أرسله من اللوحة في الأسفل.",
     portalReady: "أرسل رابط التطبيق إلى",
     selectMember: "اختر العضو",
     searchMember: "ابحث بالاسم أو الهاتف…",

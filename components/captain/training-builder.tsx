@@ -26,9 +26,7 @@ import {
 import { MemberPicker } from "@/components/captain/member-picker";
 import { MemberSummary } from "@/components/captain/member-summary";
 import { PreviousCoursesDialog, TemplatesDialog } from "@/components/captain/course-dialogs";
-import { sendCourseToMember } from "@/app/actions/whatsapp";
-import { reportSend } from "@/components/captain/whatsapp-send";
-import { CourseDelivery } from "@/components/captain/course-delivery";
+import { CourseDelivery, reportCourseLink } from "@/components/captain/course-delivery";
 import { Autocomplete } from "@/components/ui/autocomplete";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -218,7 +216,13 @@ export function TrainingBuilder({
       .filter((d) => d.exercises.length > 0);
   }
 
-  /** Save the course, then deliver the generated PDF over WhatsApp. */
+  /**
+   * Save the course and send the member their link.
+   *
+   * One action, no question: a course that has been written is a course the
+   * member should be able to read, so the link goes out with it. The server
+   * does the sending, so nothing opens here.
+   */
   function saveAndSend() {
     if (!member) return toast.error(t.noMemberSelected);
     const payloadDays = buildPayload();
@@ -233,30 +237,16 @@ export function TrainingBuilder({
         toast.error(dict.common.somethingWrong);
         return;
       }
-      const delivery = { id: res.id, shareToken: res.shareToken ?? null };
       toast.success(t.saved);
 
       const ctx = await getMemberTraining(member.id);
       if (ctx) setPrevious(ctx.courses);
 
-      if (!whatsappEnabled) {
-        // With no automatic delivery the panel is the only way to hand the
-        // course over, so show it and leave the course on screen.
-        setSaved(delivery);
-        toast.info(t.whatsappStub);
-        return;
-      }
-
-      const sendId = toast.loading(t.sending);
-      const sent = await sendCourseToMember("training", res.id);
-      toast.dismiss(sendId);
-      reportSend(sent, member.name, dict);
-
       // On the way out there is nothing left to do with this course, so the
-      // board is cleared for the next one and the panel never appears. It
-      // only shows after a failure, which is where the retry button lives.
-      if (sent.ok) resetBuilder();
-      else setSaved(delivery);
+      // board is cleared for the next one. The panel only stays when the
+      // link did not go out, which is where the manual send lives.
+      if (reportCourseLink(res.link, dict)) resetBuilder();
+      else setSaved({ id: res.id, shareToken: res.shareToken ?? null });
     });
   }
 
@@ -442,20 +432,8 @@ export function TrainingBuilder({
       {!editing && (
         <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
           <Button variant="brand" size="lg" onClick={saveAndSend} disabled={saving || !member}>
-            {saving ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : whatsappEnabled ? (
-              <Send className="size-4" />
-            ) : (
-              <Save className="size-4" />
-            )}
-            {saving
-              ? whatsappEnabled
-                ? t.saving
-                : t.savingOnly
-              : whatsappEnabled
-                ? t.saveSend
-                : t.saveOnly}
+            {saving ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+            {saving ? t.saving : t.saveSend}
           </Button>
           <Button variant="outline" onClick={() => setDialog("template-name")} disabled={saving}>
             <Bookmark className="size-4" />

@@ -23,6 +23,8 @@ import {
   WA_HEARTBEAT_KEY,
   WA_LINKED_AT_KEY,
   WA_NUMBER_KEY,
+  WA_QR_KEY,
+  WA_QR_AT_KEY,
 } from "../lib/whatsapp/worker-state";
 
 const POLL_MS = Math.max(1000, Number(process.env.WHATSAPP_POLL_MS || 5000));
@@ -44,11 +46,14 @@ async function setSetting(key: string, value: string) {
 
 /**
  * Pairing needs a QR code held in front of a phone, but this worker normally
- * runs as a Windows task with no console to print one into. So each code is
- * also written to disk as an image, next to a page that reloads it — open
- * that page once and it keeps showing the current code as WhatsApp rotates
- * it every few seconds. Both files are deleted the moment pairing succeeds,
- * since a live QR is a key to the gym's WhatsApp account.
+ * runs as a Windows task with no console to print one into.
+ *
+ * So each code goes to the database, where the Settings page picks it up and
+ * shows it — that is the way the manager is meant to pair, from wherever they
+ * are. It is also written to disk as an image beside a page that reloads it,
+ * which is the fallback when the site itself is unreachable. All of it is
+ * cleared the moment pairing succeeds, since a live QR is a key to the gym's
+ * WhatsApp account.
  */
 const PAIR_DIR = path.join(process.cwd(), "storage");
 const PAIR_PNG = path.join(PAIR_DIR, "whatsapp-qr.png");
@@ -90,6 +95,9 @@ const PAIR_HTML = `<!doctype html>
 </html>`;
 
 async function publishQr(qr: string) {
+  // The database copy is what the Settings page shows, so it goes first.
+  await setSetting(WA_QR_KEY, qr);
+  await setSetting(WA_QR_AT_KEY, new Date().toISOString());
   try {
     await mkdir(PAIR_DIR, { recursive: true });
     await QRCode.toFile(PAIR_PNG, qr, { width: 600, margin: 2 });
@@ -100,6 +108,8 @@ async function publishQr(qr: string) {
 }
 
 async function clearQr() {
+  await setSetting(WA_QR_KEY, "");
+  await setSetting(WA_QR_AT_KEY, "");
   await rm(PAIR_PNG, { force: true }).catch(() => {});
   await rm(PAIR_PAGE, { force: true }).catch(() => {});
 }
@@ -136,16 +146,26 @@ async function fetchCoursePdf(shareToken: string): Promise<Buffer | null> {
   }
 }
 
-async function deliver(row: {
+type OutboxRow = {
   id: string;
   kind: string;
-  courseId: string;
+  courseId: string | null;
   memberName: string;
   phone: string;
-  shareToken: string;
+  shareToken: string | null;
+  text: string | null;
   attempts: number;
-}): Promise<void> {
-  const kind = (row.kind === "nutrition" ? "nutrition" : "training") as CourseKind;
+};
+
+/** Mark a row sent. Shared by both kinds of message. */
+async function markSent(row: OutboxRow, attempts: number, sentAt: Date) {
+  await prisma.whatsAppOutbox.update({
+    where: { id: row.id },
+    data: { status: "SENT", attempts, sentAt, lastError: null },
+  });
+}
+
+async function deliver(row: OutboxRow): Promise<void> {
   const attempts = row.attempts + 1;
 
   const fail = async (error: string) => {
@@ -158,6 +178,27 @@ async function deliver(row: {
       `[${stamp()}] ${giveUp ? "FAILED" : "retry"}  ${row.memberName} +${row.phone}  ${error}`
     );
   };
+
+  // A sign-in link: plain text, already written by the app, nothing to fetch.
+  if (row.kind === "portal") {
+    if (!row.text) return fail("portal message has no body");
+
+    const res = await wa.sendText({ to: row.phone, body: row.text });
+    if (!res.sent) {
+      if (res.reason === "not_connected") {
+        console.log(`[${stamp()}] socket down, leaving ${row.memberName} queued`);
+        return;
+      }
+      return fail(res.detail ? `${res.reason}: ${res.detail}` : res.reason);
+    }
+
+    await markSent(row, attempts, new Date());
+    console.log(`[${stamp()}] SENT   ${row.memberName} +${row.phone}  (app link)`);
+    return;
+  }
+
+  const kind = (row.kind === "nutrition" ? "nutrition" : "training") as CourseKind;
+  if (!row.shareToken || !row.courseId) return fail("course row is missing its share link");
 
   const pdf = await fetchCoursePdf(row.shareToken);
   if (!pdf) return fail("could not download the course PDF");
@@ -180,6 +221,7 @@ async function deliver(row: {
   }
 
   const sentAt = new Date();
+  const courseId = row.courseId;
   await prisma.$transaction(async (tx) => {
     await tx.whatsAppOutbox.update({
       where: { id: row.id },
@@ -189,9 +231,9 @@ async function deliver(row: {
     // updateMany, not update: the course may have been deleted or expired
     // between queueing and sending, and that must not undo the send.
     if (kind === "training") {
-      await tx.trainingCourse.updateMany({ where: { id: row.courseId }, data: stampCols });
+      await tx.trainingCourse.updateMany({ where: { id: courseId }, data: stampCols });
     } else {
-      await tx.nutritionCourse.updateMany({ where: { id: row.courseId }, data: stampCols });
+      await tx.nutritionCourse.updateMany({ where: { id: courseId }, data: stampCols });
     }
   });
   console.log(`[${stamp()}] SENT   ${row.memberName} +${row.phone}  (${pdf.length} bytes)`);

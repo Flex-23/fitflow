@@ -7,11 +7,15 @@ import { logActivity } from "@/lib/activity";
 import { type CourseKind } from "@/lib/pdf/store";
 import { isWhatsAppEnabled, canSendCourses, toInternational } from "@/lib/whatsapp";
 import { getSetting } from "@/lib/settings";
+import QRCode from "qrcode";
 import {
   WA_HEARTBEAT_KEY,
   WA_NUMBER_KEY,
   WA_LINKED_AT_KEY,
+  WA_QR_KEY,
+  WA_QR_AT_KEY,
   WORKER_STALE_MS,
+  QR_STALE_MS,
 } from "@/lib/whatsapp/worker-state";
 
 /**
@@ -34,21 +38,39 @@ export type WaStatus = {
   lastSeen: string | null;
   pending: number;
   failed: number;
+  /**
+   * The pairing code, rendered as an image, while one is waiting to be
+   * scanned. Null at every other time — including when the code on file has
+   * already rotated, because showing a dead code is worse than showing none.
+   */
+  qrDataUrl: string | null;
 };
 
 /** What the Settings page shows about WhatsApp delivery. Manager only. */
 export async function getWhatsAppStatus(): Promise<WaStatus> {
   await requireRole("MANAGER");
 
-  const [number, linkedAt, lastSeen, pending, failed] = await Promise.all([
+  const [number, linkedAt, lastSeen, qr, qrAt, pending, failed] = await Promise.all([
     getSetting(WA_NUMBER_KEY, ""),
     getSetting(WA_LINKED_AT_KEY, ""),
     getSetting(WA_HEARTBEAT_KEY, ""),
+    getSetting(WA_QR_KEY, ""),
+    getSetting(WA_QR_AT_KEY, ""),
     prisma.whatsAppOutbox.count({ where: { status: "PENDING" } }),
     prisma.whatsAppOutbox.count({ where: { status: "FAILED" } }),
   ]);
 
   const seen = lastSeen ? Date.parse(lastSeen) : NaN;
+  const madeAt = qrAt ? Date.parse(qrAt) : NaN;
+  const fresh = qr && Number.isFinite(madeAt) && Date.now() - madeAt < QR_STALE_MS;
+
+  // Drawn here rather than in the browser: the page needs an image, not a QR
+  // library, and the payload never has to reach the client at all.
+  let qrDataUrl: string | null = null;
+  if (fresh) {
+    qrDataUrl = await QRCode.toDataURL(qr, { width: 480, margin: 1 }).catch(() => null);
+  }
+
   return {
     enabled: isWhatsAppEnabled(),
     online: Number.isFinite(seen) && Date.now() - seen < WORKER_STALE_MS,
@@ -57,6 +79,7 @@ export async function getWhatsAppStatus(): Promise<WaStatus> {
     lastSeen: lastSeen || null,
     pending,
     failed,
+    qrDataUrl,
   };
 }
 

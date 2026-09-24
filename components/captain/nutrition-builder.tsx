@@ -2,16 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Plus, Save, Send, FileDown, Salad, Loader2 } from "lucide-react";
+import { Plus, Send, FileDown, Salad, Loader2 } from "lucide-react";
 import { createNutritionCourse } from "@/app/actions/nutrition";
 import { searchMeals } from "@/app/actions/nutrition";
 import { MemberPicker, type BasicMember } from "@/components/captain/member-picker";
 import { MemberSummary } from "@/components/captain/member-summary";
 import { getMemberProfile, type MemberTrainingProfile } from "@/app/actions/courses";
 import type { Locale } from "@/lib/i18n/config";
-import { sendCourseToMember } from "@/app/actions/whatsapp";
-import { reportSend } from "@/components/captain/whatsapp-send";
-import { CourseDelivery } from "@/components/captain/course-delivery";
+import { CourseDelivery, reportCourseLink } from "@/components/captain/course-delivery";
 import { Autocomplete } from "@/components/ui/autocomplete";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -85,27 +83,11 @@ export function NutritionBuilder({
         toast.error(dict.common.somethingWrong);
         return;
       }
-      const delivery = { id: res.id, shareToken: res.shareToken ?? null };
       toast.success(t.saved);
 
-      if (!whatsappEnabled) {
-        // With no automatic delivery the panel is the only way to hand the
-        // course over, so show it and leave the course on screen.
-        setSaved(delivery);
-        toast.info(t.whatsappStub);
-        return;
-      }
-
-      const sendId = toast.loading(t.sending);
-      const sent = await sendCourseToMember("nutrition", res.id);
-      toast.dismiss(sendId);
-      reportSend(sent, member.name, dict);
-
-      // On the way out there is nothing left to do with this course, so the
-      // board is cleared for the next one and the panel never appears. It
-      // only shows after a failure, which is where the retry button lives.
-      if (sent.ok) resetBuilder();
-      else setSaved(delivery);
+      // Saving sends the member their link — see the training builder.
+      if (reportCourseLink(res.link, dict)) resetBuilder();
+      else setSaved({ id: res.id, shareToken: res.shareToken ?? null });
     });
   }
 
@@ -179,20 +161,8 @@ export function NutritionBuilder({
           {t.addDay}
         </Button>
         <Button variant="brand" size="lg" onClick={save} disabled={saving || !member}>
-          {saving ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : whatsappEnabled ? (
-            <Send className="size-4" />
-          ) : (
-            <Save className="size-4" />
-          )}
-          {saving
-            ? whatsappEnabled
-              ? t.saving
-              : t.savingOnly
-            : whatsappEnabled
-              ? t.saveNutrition
-              : t.saveOnly}
+          {saving ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+          {saving ? t.saving : t.saveNutrition}
         </Button>
         {saved && (
           <Button asChild variant="secondary">

@@ -4,15 +4,14 @@ import { prisma } from "@/lib/prisma";
 import type { LimitRule } from "@/lib/rate-limit";
 
 /**
- * How long an invitation link stays usable after staff send it.
+ * How long an invitation link stays usable.
  *
- * Short on purpose: the member is standing at the desk, or on the phone,
- * when it is sent. Ten minutes is enough to open it and add it to a home
- * screen, and after that the message sitting in their WhatsApp history is
- * just text — forwarding it, or reading it off a stolen phone, gets nobody
- * in. If they miss the window the desk sends another; it costs one press.
+ * A week, because a link is now sent with every course the member is given
+ * and they may not look at their phone for days. What limits the damage is
+ * not the clock but the single use: the first real opening destroys it, so
+ * the message left in a WhatsApp history opens nothing afterwards.
  */
-export const PORTAL_LINK_TTL_MS = 10 * 60_000;
+export const PORTAL_LINK_TTL_MS = 7 * 24 * 60 * 60_000;
 
 /** Throttle on the entry point, so nobody walks tokens through it. */
 export const PORTAL_RULE: LimitRule = {

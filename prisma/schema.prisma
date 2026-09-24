@@ -466,24 +466,29 @@ enum OutboxStatus {
   FAILED
 }
 
-/// A course waiting to go out on WhatsApp.
+/// A message waiting to go out on WhatsApp.
 ///
 /// The hosted app cannot hold a WhatsApp socket open, so it only queues the
 /// request here; the worker on the gym computer (`npm run whatsapp`) picks it
-/// up, downloads the course PDF from its share link and sends it from the
-/// gym's number.
+/// up and sends it from the gym's number.
 model WhatsAppOutbox {
   id String @id @default(cuid())
 
-  /// "training" | "nutrition" — which course table `courseId` refers to.
+  /// "portal" — plain text, the member's sign-in link; the whole message is
+  /// in `text` and there is no course attached.
+  /// "training" | "nutrition" — a course PDF, downloaded from `shareToken`
+  /// and sent as an attachment; `courseId` says which table it came from.
   kind       String
-  courseId   String
+  courseId   String?
   /// Copied at queue time so the worker needs no joins and the row still
   /// makes sense in the log after the course auto-expires.
   memberName String
   /// International form, digits only (e.g. 9647701234567).
   phone      String
-  shareToken String
+  shareToken String?
+  /// The message body, written by the app so the wording lives in one place
+  /// (and with it, for a portal message, the link itself).
+  text       String? @db.Text
 
   status    OutboxStatus @default(PENDING)
   attempts  Int          @default(0)

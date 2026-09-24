@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createMemberSession } from "@/lib/member-session";
+import { createMemberSession, getMemberSession } from "@/lib/member-session";
 import { clientKey, lockedFor, recordFailure, clearFailures } from "@/lib/rate-limit";
 import { consumePortalToken, PORTAL_RULE } from "@/lib/member-portal";
 
@@ -27,6 +27,16 @@ export async function GET(req: NextRequest) {
 
   if (!token) return to("/me");
 
+  // WhatsApp fetches every link it is shown to build the little preview card,
+  // and so do other chat apps. A single-use token must survive that: only a
+  // real navigation — a person tapping the link — is allowed to spend it.
+  // Crawlers ask for the document without these headers and are simply sent
+  // on, which costs them nothing and the member nothing.
+  const mode = req.headers.get("sec-fetch-mode");
+  const dest = req.headers.get("sec-fetch-dest");
+  const isNavigation = mode === "navigate" || dest === "document";
+  if (!isNavigation) return to("/me");
+
   // Tokens are far too long to guess, but a throttle keeps anyone from
   // trying at the database's expense.
   const key = `portal:${await clientKey()}`;
@@ -34,6 +44,11 @@ export async function GET(req: NextRequest) {
 
   const entry = await consumePortalToken(token);
   if (!entry.ok) {
+    // Tapping the same link twice is the commonest way to land here, and the
+    // phone is already signed in — show the page rather than an error about a
+    // link that did its job.
+    if (await getMemberSession()) return to("/me");
+
     await recordFailure(key, PORTAL_RULE);
     // Used, expired and never-existed all look the same from out here, on
     // purpose: the difference is only useful to someone probing.

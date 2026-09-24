@@ -73,6 +73,26 @@ export function buildWelcomeMessage(name: string): string {
 }
 
 /**
+ * The message a member gets with the link to their own page.
+ *
+ * A welcome and an invitation, nothing more. It says what the link opens and
+ * how to keep it on the phone; it does not talk about how long the link lasts
+ * or how many times it works, because that is the gym's problem to manage and
+ * not something a member can do anything about.
+ */
+export function buildPortalMessage(name: string, url: string): string {
+  return [
+    `مرحباً ${name} 👋`,
+    "أهلاً بك في FitFlow 💪",
+    "",
+    "هذا رابط الدخول إلى صفحتك الخاصة — اشتراكك، تاريخ بدايته ونهايته، وكورساتك:",
+    url,
+    "",
+    "افتح الرابط ثم اضغط «إضافة إلى الشاشة الرئيسية» ليصبح التطبيق عندك مباشرة.",
+  ].join("\n");
+}
+
+/**
  * Caption sent with the course PDF. `url` is the private share link; when the
  * app has no public address configured it is left out rather than sending a
  * localhost link the member cannot open.

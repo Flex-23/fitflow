@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
 import { nutritionCourseSchema } from "@/schemas/course";
 import { twoMonthsFromNow } from "@/lib/courses";
+import { sendCourseLink, type PortalLinkResult } from "@/lib/portal-delivery";
 
 export async function searchMeals(query: string) {
   await requireRole("CAPTAIN");
@@ -28,9 +29,14 @@ export async function getMemberForNutrition(memberId: string) {
   return member;
 }
 
-export async function createNutritionCourse(
-  input: unknown
-): Promise<{ ok: boolean; id?: string; shareToken?: string; error?: string }> {
+export async function createNutritionCourse(input: unknown): Promise<{
+  ok: boolean;
+  id?: string;
+  shareToken?: string;
+  /** What happened to the member's link, sent alongside the course. */
+  link?: PortalLinkResult;
+  error?: string;
+}> {
   const user = await requireRole("CAPTAIN");
   const parsed = nutritionCourseSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "invalid" };
@@ -79,6 +85,14 @@ export async function createNutritionCourse(
     targetId: course.id,
   });
 
+  // The member's link goes out with the course — see createTrainingCourse.
+  const link = await sendCourseLink(user.id, d.memberId);
+
   revalidatePath("/nutrition");
-  return { ok: true, id: course.id, shareToken: course.shareToken ?? undefined };
+  return {
+    ok: true,
+    id: course.id,
+    shareToken: course.shareToken ?? undefined,
+    link: link ?? undefined,
+  };
 }
