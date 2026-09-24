@@ -2,11 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { Cairo } from "next/font/google";
 import "./globals.css";
 import { getLocale } from "@/lib/i18n/get-locale";
-import { getDictionary } from "@/lib/i18n";
 import { localeDirection } from "@/lib/i18n/config";
 import { Toaster } from "@/components/ui/sonner";
 import { ServiceWorker } from "@/components/pwa/service-worker";
-import { InstallPrompt } from "@/components/pwa/install-prompt";
 
 // Cairo carries both Arabic and Latin glyphs, giving a consistent bilingual look.
 const cairo = Cairo({
@@ -42,7 +40,6 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const locale = await getLocale();
-  const dict = await getDictionary(locale);
   const dir = localeDirection[locale];
 
   return (
@@ -56,7 +53,6 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         {children}
         <Toaster />
         <ServiceWorker />
-        <InstallPrompt dict={dict} />
       </body>
     </html>
   );

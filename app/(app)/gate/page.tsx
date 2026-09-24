@@ -4,8 +4,15 @@ import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { safeGymDay, gymDayRange, currentGymDay } from "@/lib/gym-day";
+import { getSetting } from "@/lib/settings";
+import {
+  gateHealth,
+  GATE_HEARTBEAT_KEY,
+  GATE_PANEL_OK_KEY,
+} from "@/lib/gate/worker-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { GateLog } from "@/components/reception/gate-log";
+import { GateHealthNote } from "@/components/reception/gate-health-note";
 
 export const metadata: Metadata = { title: "Gate" };
 
@@ -25,12 +32,18 @@ export default async function GatePage({
   const selectedDay = safeGymDay(day);
   const { from, to } = gymDayRange(selectedDay);
 
-  const logs = await prisma.gateLog.findMany({
-    where: { createdAt: { gte: from, lte: to } },
-    include: { member: { select: { name: true, phone: true } } },
-    orderBy: { createdAt: "desc" },
-    take: 500,
-  });
+  const [logs, heartbeat, panelOkAt] = await Promise.all([
+    prisma.gateLog.findMany({
+      where: { createdAt: { gte: from, lte: to } },
+      include: { member: { select: { name: true, phone: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 500,
+    }),
+    getSetting(GATE_HEARTBEAT_KEY, ""),
+    getSetting(GATE_PANEL_OK_KEY, ""),
+  ]);
+
+  const health = gateHealth(heartbeat, panelOkAt);
 
   const rows = logs.map((l) => ({
     id: l.id,
@@ -47,6 +60,7 @@ export default async function GatePage({
   return (
     <div>
       <PageHeader title={dict.gate.title} description={dict.gate.subtitle} />
+      <GateHealthNote health={health} dict={dict} locale={locale} />
       <GateLog
         rows={rows}
         day={selectedDay}

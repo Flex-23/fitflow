@@ -17,6 +17,7 @@
 import { workerPrisma } from "../lib/worker-db";
 import { C3Panel, CARD_EVENTS } from "../lib/gate/c3";
 import { decideEntry } from "../lib/gate/decide";
+import { GATE_HEARTBEAT_KEY, GATE_PANEL_OK_KEY } from "../lib/gate/worker-state";
 
 const HOST = process.env.GATE_PANEL_HOST || "192.168.1.201";
 const PORT = Number(process.env.GATE_PANEL_PORT || 4370);
@@ -37,6 +38,32 @@ if (process.env.GATE_ENABLED !== "true") {
 }
 
 /**
+ * A panel that is unplugged must cost the gym nothing but the door.
+ *
+ * Whatever the network, the hardware or the driver throws, this process keeps
+ * its loop and keeps reporting in — so the desk sees "gate offline" rather
+ * than a bridge that quietly died, and the moment the panel answers again
+ * everything carries on as before.
+ */
+process.on("unhandledRejection", (e) => {
+  console.log(`[${stamp()}] unhandled rejection: ${e instanceof Error ? e.message : e}`);
+});
+process.on("uncaughtException", (e) => {
+  console.log(`[${stamp()}] uncaught: ${e instanceof Error ? e.message : e}`);
+});
+
+const HEARTBEAT_MS = 20_000;
+
+async function setSetting(key: string, value: string) {
+  await prisma.setting
+    .upsert({ where: { key }, update: { value }, create: { key, value } })
+    .catch(() => {
+      // The door does not depend on this; a lost heartbeat only makes the
+      // /gate page say "stopped" a minute early.
+    });
+}
+
+/**
  * Reconnect with a growing delay.
  *
  * The panel accepts a single client and, after dropping one, refuses new
@@ -53,9 +80,16 @@ async function connectPanel(): Promise<C3Panel> {
   let attempt = 0;
   for (;;) {
     const panel = new C3Panel(HOST, PORT, PASSWORD);
-    panel.onClose = (reason) => console.log(`[${stamp()}] panel link lost: ${reason}`);
+    // Only a link that was actually up can be lost. The retry below closes
+    // each failed attempt itself, and reporting those as losses buried the
+    // log under thousands of lines about a connection that never existed.
+    let wasUp = false;
+    panel.onClose = (reason) => {
+      if (wasUp) console.log(`[${stamp()}] panel link lost: ${reason}`);
+    };
     try {
       await panel.connect();
+      wasUp = true;
       const p = await panel.getParams(["~DeviceName", "~SerialNumber", "LockCount"]);
       console.log(
         `[${stamp()}] panel connected: ${p["~DeviceName"] ?? "?"} SN ${p["~SerialNumber"] ?? "?"} (${p.LockCount ?? "?"} doors) at ${HOST}:${PORT}` +
@@ -64,6 +98,10 @@ async function connectPanel(): Promise<C3Panel> {
       return panel;
     } catch (e) {
       attempt++;
+      // Keep reporting in while the panel is away: a bridge that is waiting
+      // and a bridge that has stopped look identical from the website
+      // otherwise.
+      await setSetting(GATE_HEARTBEAT_KEY, new Date().toISOString());
       // Only the first failure and every tenth after it are worth a line;
       // the rest are the same message repeating while the panel is away.
       if (attempt === 1 || attempt % 10 === 0) {
@@ -85,9 +123,19 @@ async function main() {
 
   let panel = await connectPanel();
   const lastSeen = new Map<number, number>();
+  let lastBeat = 0;
 
   for (;;) {
     if (!panel.connected) panel = await connectPanel();
+
+    const now = Date.now();
+    if (now - lastBeat > HEARTBEAT_MS) {
+      lastBeat = now;
+      const at = new Date().toISOString();
+      await setSetting(GATE_HEARTBEAT_KEY, at);
+      // Two separate facts: this process is alive, and the panel answers.
+      await setSetting(GATE_PANEL_OK_KEY, at);
+    }
 
     let records;
     try {
@@ -151,7 +199,20 @@ async function main() {
   }
 }
 
-main().catch(async (e) => {
+// Restart the loop rather than the process: the panel being away is the
+// normal state of a gate whose cable is out, and it must not end the bridge.
+async function forever() {
+  for (;;) {
+    try {
+      await main();
+    } catch (e) {
+      console.log(`[${stamp()}] bridge error, restarting in 5s: ${(e as Error).message}`);
+      await sleep(5000);
+    }
+  }
+}
+
+forever().catch(async (e) => {
   console.error("Gate bridge failed:", e);
   await prisma.$disconnect().catch(() => {});
   process.exit(1);

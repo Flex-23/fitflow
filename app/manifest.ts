@@ -1,42 +1,12 @@
 import type { MetadataRoute } from "next";
+import { memberManifest } from "@/lib/pwa";
 
 /**
- * What the browser needs to install FitFlow as an app.
+ * The member's app — the default for every page that is not staff-only.
  *
- * `start_url` is "/" for everyone: that route looks at the session cookie and
- * sends staff to their work screen and a member to their own page, so one
- * installed icon serves both without two separate builds.
- *
- * Served from the app itself rather than a static file so it stays in step
- * with the routes it points at.
+ * Served from the app rather than a static file so it stays in step with the
+ * routes it points at. The staff app has its own at /staff.webmanifest.
  */
 export default function manifest(): MetadataRoute.Manifest {
-  return {
-    name: "FitFlow",
-    short_name: "FitFlow",
-    description: "Gym membership, courses and daily takings.",
-    start_url: "/",
-    scope: "/",
-    display: "standalone",
-    orientation: "portrait",
-    background_color: "#1a1c22",
-    theme_color: "#1a1c22",
-    // The app is dark-only, so there is no light variant to declare.
-    icons: [
-      { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-      { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
-      {
-        src: "/icons/maskable-192.png",
-        sizes: "192x192",
-        type: "image/png",
-        purpose: "maskable",
-      },
-      {
-        src: "/icons/maskable-512.png",
-        sizes: "512x512",
-        type: "image/png",
-        purpose: "maskable",
-      },
-    ],
-  };
+  return memberManifest();
 }

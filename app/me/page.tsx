@@ -8,6 +8,7 @@ import { getMemberSession } from "@/lib/member-session";
 import { getMemberPortal } from "@/lib/member-portal";
 import { Brand } from "@/components/brand";
 import { BrandWatermark } from "@/components/brand-watermark";
+import { InstallAppButton } from "@/components/pwa/install-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/reception/status-badge";
@@ -182,6 +183,10 @@ export default async function MemberPage({
             </ul>
           )}
         </section>
+
+        {/* A standing offer, not a banner: the link that brought them here
+            works once, so the way back is the icon on their home screen. */}
+        <InstallAppButton dict={dict} />
 
         <p className="text-center text-xs text-muted-foreground">{t.footerNote}</p>
       </div>

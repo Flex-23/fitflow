@@ -402,6 +402,14 @@ const en = {
     settingsSaved: "Settings saved",
   },
   gate: {
+    bridgeStopped: "The gate bridge is not running",
+    bridgeStoppedHelp:
+      "Nothing else is affected — members are registered and courses are sent as usual. Only the turnstile is not being watched. Start the gym computer, or run npm run gate on it.",
+    panelOffline: "The turnstile is not answering",
+    panelOfflineHelp:
+      "The bridge is running and waiting. Check the panel's power and its network cable; it reconnects on its own the moment it answers.",
+    lastWorking: "Last working",
+    neverConnected: "It has not connected yet.",
     title: "Gate",
     subtitle: "Every card presented at the turnstile and whether it was let in.",
     entries: "Entries",
@@ -754,10 +762,11 @@ const en = {
     noMembersDesc: "Register the first member to see them here.",
   },
   pwa: {
+    alreadyInstalled: "FitFlow is already on this device",
+    installManual:
+      "Open your browser's menu and choose \u201CInstall app\u201D or \u201CAdd to Home screen\u201D.",
     installTitle: "Add FitFlow to your home screen",
-    installBody: "Opens like an app, straight to your page.",
     installIos: "Tap Share, then \u201CAdd to Home Screen\u201D.",
-    install: "Install",
     offlineTitle: "No connection",
     offlineBody:
       "FitFlow needs the internet to show your details. Try again once you are back online.",

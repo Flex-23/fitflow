@@ -48,6 +48,7 @@ export type MemberPortal = {
   } | null;
   /** Queued behind the current one after an early renewal. */
   upcoming: { planName: string; startDate: string; endDate: string } | null;
+  /** The current programme only — the newest of each kind, never a history. */
   courses: {
     id: string;
     kind: "training" | "nutrition";
@@ -67,16 +68,19 @@ export async function getMemberPortal(memberId: string): Promise<MemberPortal | 
     where: { id: memberId },
     include: {
       subscriptions: { orderBy: { endDate: "desc" }, take: 5 },
+      // Only the course the member is on right now, one of each kind. Their
+      // history is the gym's record, not something to hand them: a list of
+      // old programmes invites following the wrong one.
       trainingCourses: {
         where: { isTemplate: false, shareToken: { not: null } },
         orderBy: { createdAt: "desc" },
-        take: 10,
+        take: 1,
         select: { id: true, title: true, createdAt: true, shareToken: true },
       },
       nutritionCourses: {
         where: { shareToken: { not: null } },
         orderBy: { createdAt: "desc" },
-        take: 10,
+        take: 1,
         select: { id: true, createdAt: true, shareToken: true },
       },
     },

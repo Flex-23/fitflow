@@ -27,6 +27,7 @@ import { StatTile } from "@/components/manager/stat-tile";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { InstallAppButton } from "@/components/pwa/install-button";
 
 export const metadata: Metadata = { title: "Summary" };
 
@@ -81,6 +82,10 @@ export default async function SummaryPage() {
   return (
     <div className="space-y-6">
       <PageHeader title={t.title} description={t.subtitle} />
+
+      {/* This is the manager's home screen, so the way to make it one lives
+          here. Its own app, with its own icon — not the member's. */}
+      <InstallAppButton dict={dict} className="sm:max-w-xs" />
 
       {/* Today */}
       <section className="space-y-3">
