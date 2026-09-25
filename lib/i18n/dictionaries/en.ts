@@ -182,8 +182,6 @@ const en = {
     editPlan: "Edit plan",
     planName: "Plan name",
     durationDays: "Duration (days)",
-    priceRuleNote:
-      "Editing a price only affects new and renewing subscriptions. Active subscriptions keep their original price.",
     activePlan: "Active",
     archivedPlan: "Archived",
     archive: "Archive",
@@ -285,6 +283,7 @@ const en = {
     notificationsTitle: "Notifications",
     notificationsSubtitle: "Everything that needs your attention.",
     expiringToday: "Expiring today",
+    justExpired: "Expired in the last two days",
     expiringSoon: "Expiring soon",
     outstanding: "Outstanding balances",
     currentlyFrozen: "Currently frozen",

@@ -35,7 +35,6 @@ import { logout } from "@/app/actions/auth";
 import { Brand } from "@/components/brand";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { BrandWatermark } from "@/components/brand-watermark";
-import { MyAccount } from "@/components/layout/my-account";
 import { Badge } from "@/components/ui/badge";
 import type { Dictionary } from "@/lib/i18n";
 import type { Locale } from "@/lib/i18n/config";
@@ -147,7 +146,7 @@ export function AppShell({
           <Brand />
         </div>
         <NavList groups={groups} />
-        <UserFooter displayName={user.displayName} roleLabel={roleLabel} signOut={dict.auth.signOut} dict={dict} />
+        <UserFooter displayName={user.displayName} roleLabel={roleLabel} signOut={dict.auth.signOut} />
       </aside>
 
       {/* Content column */}
@@ -200,7 +199,7 @@ export function AppShell({
               </button>
             </div>
             <NavList groups={groups} onNavigate={() => setOpen(false)} />
-            <UserFooter displayName={user.displayName} roleLabel={roleLabel} signOut={dict.auth.signOut} dict={dict} />
+            <UserFooter displayName={user.displayName} roleLabel={roleLabel} signOut={dict.auth.signOut} />
           </div>
         </div>
       )}
@@ -262,12 +261,10 @@ function UserFooter({
   displayName,
   roleLabel,
   signOut,
-  dict,
 }: {
   displayName: string;
   roleLabel: string;
   signOut: string;
-  dict: Dictionary;
 }) {
   return (
     <div className="border-t border-sidebar-border p-3">
@@ -282,7 +279,6 @@ function UserFooter({
           </Badge>
         </div>
       </div>
-      <MyAccount dict={dict} displayName={displayName} />
       <form action={logout}>
         <button
           type="submit"

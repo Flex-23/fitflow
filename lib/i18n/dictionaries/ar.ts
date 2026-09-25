@@ -182,8 +182,6 @@ const ar: Dictionary = {
     editPlan: "تعديل الخطة",
     planName: "اسم الخطة",
     durationDays: "المدة (أيام)",
-    priceRuleNote:
-      "تعديل السعر يؤثّر فقط على الاشتراكات الجديدة والمجدَّدة. الاشتراكات الفعّالة تحتفظ بسعرها الأصلي.",
     activePlan: "مفعّلة",
     archivedPlan: "مؤرشفة",
     archive: "أرشفة",
@@ -284,6 +282,7 @@ const ar: Dictionary = {
     notificationsTitle: "الإشعارات",
     notificationsSubtitle: "كل ما يحتاج انتباهك.",
     expiringToday: "تنتهي اليوم",
+    justExpired: "انتهت خلال اليومين الماضيين",
     expiringSoon: "قاربت على الانتهاء",
     outstanding: "أرصدة مستحقة",
     currentlyFrozen: "موقوفة حالياً",

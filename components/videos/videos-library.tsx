@@ -54,39 +54,72 @@ export function VideosLibrary({ videos, dict }: { videos: VideoRow[]; dict: Dict
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {videos.map((v) => (
-              <Card key={v.id} className="flex flex-col">
+              <Card
+                key={v.id}
+                className="group/card flex flex-col overflow-hidden transition-colors hover:border-brand/40"
+              >
                 <button
                   type="button"
                   onClick={() => setPreview(v)}
-                  className="group relative flex aspect-video items-center justify-center rounded-t-xl bg-gradient-to-br from-secondary to-muted"
+                  aria-label={`${t.preview}: ${v.exerciseName}`}
+                  className="group/play relative flex aspect-video items-center justify-center bg-gradient-to-br from-secondary to-muted"
                 >
-                  <Play className="size-10 text-brand transition-transform group-hover:scale-110" />
+                  <span className="grid size-14 place-items-center rounded-full bg-background/70 text-brand shadow-lg backdrop-blur-sm transition-transform group-hover/play:scale-110">
+                    <Play className="size-6 translate-x-0.5 fill-current" />
+                  </span>
+                  {/* Where the video lives belongs on the thumbnail, not in
+                      the title row where it used to squeeze the name. */}
+                  {v.source === "LINK" && v.url && (
+                    <Badge
+                      variant="secondary"
+                      className="absolute end-2 top-2 gap-1 bg-background/80 backdrop-blur-sm"
+                    >
+                      <LinkIcon className="size-3" />
+                      {providerLabel(parseVideoLink(v.url)?.provider ?? "other")}
+                    </Badge>
+                  )}
                 </button>
-                <div className="flex flex-1 flex-col p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="line-clamp-2 font-medium">{v.exerciseName}</p>
-                    {v.source === "LINK" && v.url && (
-                      <Badge variant="secondary" className="shrink-0 gap-1">
-                        <LinkIcon className="size-3" />
-                        {providerLabel(parseVideoLink(v.url)?.provider ?? "other")}
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {v.addedByName ? `${t.addedBy} ${v.addedByName}` : ""}
+
+                <div className="flex flex-1 flex-col gap-1 p-4">
+                  {/* Two lines whether the name needs them or not, so every
+                      card in a row lines up and the buttons sit on one line
+                      across the grid. */}
+                  <p className="line-clamp-2 min-h-11 font-medium leading-snug">
+                    {v.exerciseName}
                   </p>
-                  <div className="mt-3 flex items-center gap-1 border-t border-border pt-3">
-                    <Button variant="ghost" size="sm" onClick={() => setPreview(v)}>
+                  {v.addedByName && (
+                    <p className="truncate text-xs text-muted-foreground">
+                      {t.addedBy} {v.addedByName}
+                    </p>
+                  )}
+
+                  {/* mt-auto: the row is pinned to the bottom of the card, so
+                      a one-line name and a two-line name still agree. */}
+                  <div className="mt-auto flex items-center gap-1 border-t border-border pt-3">
+                    <Button
+                      variant="soft"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => setPreview(v)}
+                    >
                       <Play className="size-4" />
                       {t.preview}
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setEditing(v)}>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      title={dict.common.edit}
+                      aria-label={dict.common.edit}
+                      onClick={() => setEditing(v)}
+                    >
                       <Pencil className="size-4" />
                     </Button>
                     <Button
                       variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive"
+                      size="icon-sm"
+                      title={dict.common.delete}
+                      aria-label={dict.common.delete}
+                      className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                       onClick={() => setDeleting(v)}
                     >
                       <Trash2 className="size-4" />

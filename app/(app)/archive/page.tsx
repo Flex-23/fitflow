@@ -12,7 +12,13 @@ import { MembersArchive } from "@/components/manager/members-archive";
 
 export const metadata: Metadata = { title: "Members archive" };
 
-/** A member counts as away once their last subscription ended this long ago. */
+/**
+ * A member belongs here once their subscription ended this long ago.
+ *
+ * A month, so somebody who is simply late renewing stays on the expired
+ * list where reception will chase them, and only the ones who have really
+ * stopped coming collect here.
+ */
 const ABSENT_AFTER_DAYS = 30;
 
 export default async function ArchivePage({
@@ -44,6 +50,9 @@ export default async function ArchivePage({
             endDate: { gt: today },
           },
         },
+        // This list is about subscriptions that ran out, so a member who
+        // never had one is not in it — there is no expiry to be a month past.
+        NOT: { subscriptions: { none: {} } },
       },
       include: { subscriptions: { orderBy: { endDate: "desc" }, take: 1 } },
       orderBy: { createdAt: "asc" },
@@ -57,9 +66,8 @@ export default async function ArchivePage({
   // The "absent for 30+ days" cut depends on each member's latest end date,
   // which needs a join — so the filter runs here and paging is applied after.
   const all = members
-    // Never-subscribed members are measured from when they registered.
-    .map((m) => ({ member: m, since: (m.subscriptions[0]?.endDate ?? m.createdAt).getTime() }))
-    .filter((r) => r.since < cutoff)
+    .map((m) => ({ member: m, since: m.subscriptions[0]?.endDate.getTime() ?? 0 }))
+    .filter((r) => r.since > 0 && r.since < cutoff)
     .sort((a, b) => a.since - b.since);
 
   const current = pageFrom(page);

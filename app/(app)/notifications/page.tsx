@@ -1,5 +1,12 @@
 import type { Metadata } from "next";
-import { CalendarClock, CalendarDays, Wallet, Snowflake, BellOff } from "lucide-react";
+import {
+  CalendarClock,
+  CalendarDays,
+  CalendarX2,
+  Wallet,
+  Snowflake,
+  BellOff,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { requireSection } from "@/lib/auth/dal";
 import { getLocale } from "@/lib/i18n/get-locale";
@@ -27,6 +34,7 @@ export default async function NotificationsPage() {
   const total =
     n.expiringToday.length +
     n.expiringSoon.length +
+    n.justExpired.length +
     n.deferred.length +
     n.frozen.length;
 
@@ -63,6 +71,17 @@ export default async function NotificationsPage() {
             key: s.id,
             primary: s.member.name,
             secondary: `${formatDate(s.endDate, locale)} • ${daysUntil(s.endDate)} ${t.daysLeft}`,
+          }))}
+        />
+        <Section
+          icon={CalendarX2}
+          tone="destructive"
+          title={t.justExpired}
+          count={n.justExpired.length}
+          items={n.justExpired.map((s) => ({
+            key: s.id,
+            primary: s.member.name,
+            secondary: `${formatDate(s.endDate, locale)} • ${s.member.phone}`,
           }))}
         />
         <Section

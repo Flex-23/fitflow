@@ -96,7 +96,14 @@ export function MoneyInput({
   void min;
 
   return (
-    <div className="relative">
+    // Left-to-right on the wrapper, not only on the box.
+    //
+    // Amounts are always written LTR, so the input forces that direction —
+    // but the wrapper was inheriting the page's RTL, and "inline-end" then
+    // meant opposite sides for the two: the field reserved room on its right
+    // while the currency label sat on the left, on top of the digits. Both
+    // agree now, and the label lands after the number where it is read.
+    <div className="relative" dir="ltr">
       <input type="hidden" name={name} value={raw} />
       <input
         ref={inputRef}

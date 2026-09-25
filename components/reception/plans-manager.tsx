@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useActionState } from "react";
 import { toast } from "sonner";
-import { Plus, Pencil, Archive, RotateCcw, Info, Tags } from "lucide-react";
+import { Plus, Pencil, Archive, RotateCcw, Tags } from "lucide-react";
 import { savePlan, togglePlanActive } from "@/app/actions/plans";
 import { emptyState } from "@/lib/action-state";
 import { Button } from "@/components/ui/button";
@@ -59,11 +59,6 @@ export function PlansManager({
 
   return (
     <div className="space-y-4">
-      <Card className="flex items-center gap-3 border-brand/20 bg-brand/5 p-4 text-sm">
-        <Info className="size-5 shrink-0 text-brand" />
-        <span>{t.priceRuleNote}</span>
-      </Card>
-
       <div className="flex justify-end">
         <Button variant="brand" onClick={openNew}>
           <Plus className="size-4" />

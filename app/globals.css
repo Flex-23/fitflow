@@ -167,6 +167,32 @@
    of filling the gutter edge to edge.
    ============================================================================ */
 
+/* The browser draws the date picker's calendar button itself, in black, and
+   on this palette that is a dark smudge on a dark field. Telling the input
+   its colour scheme is dark makes the browser draw a light one; the filter
+   is the fallback for engines that ignore that. */
+input[type="date"],
+input[type="datetime-local"],
+input[type="month"],
+input[type="time"] {
+  color-scheme: dark;
+}
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+input[type="month"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.6;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover,
+input[type="month"]::-webkit-calendar-picker-indicator:hover,
+input[type="time"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
 * {
   scrollbar-width: thin;
   scrollbar-color: color-mix(in oklch, var(--foreground) 16%, transparent) transparent;

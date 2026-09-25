@@ -21,7 +21,8 @@
     "gate:check": "tsx --env-file=.env scripts/gate-check.ts",
     "check:portal": "tsx --env-file=.env scripts/portal-send-check.ts",
     "master": "tsx --env-file=.env scripts/create-master.ts",
-    "check:access": "tsx --env-file=.env scripts/access-check.ts"
+    "check:access": "tsx --env-file=.env scripts/access-check.ts",
+    "check:rules": "tsx --env-file=.env scripts/rules-check.ts"
   },
   "prisma": {
     "seed": "tsx --env-file=.env prisma/seed.ts"
