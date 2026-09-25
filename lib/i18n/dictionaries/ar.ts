@@ -333,6 +333,8 @@ const ar: Dictionary = {
     newPassword: "كلمة مرور جديدة",
     role: "الدور",
     chooseRole: "اختر دوراً…",
+    sectionsLabel: "الأقسام التي يفتحها هذا المدير",
+    sectionsHelp: "أشّر ما يجب أن يراه. يمكنك تغييره لاحقاً من شاشة الماستر.",
     canAddVideos: "يمكنه إضافة فيديوهات",
     canAddVideosDesc: "السماح لهذا الكابتن برفع الفيديوهات إلى المكتبة.",
     activeAccount: "مفعّل",

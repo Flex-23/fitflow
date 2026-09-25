@@ -4,6 +4,27 @@ const checkbox = z.preprocess((v) => v === "on" || v === "true" || v === true, z
 
 export const ROLES = ["MANAGER", "RECEPTION", "CAPTAIN"] as const;
 
+export const SECTIONS = [
+  "RECEPTION",
+  "COACHING",
+  "LIBRARY",
+  "FINANCE",
+  "MANAGEMENT",
+  "STAFF",
+] as const;
+
+/**
+ * The sections ticked on a form.
+ *
+ * A checkbox group arrives as a repeated field, or as a single value when
+ * exactly one box is ticked, or not at all when none is — so all three have
+ * to mean the same thing.
+ */
+const sectionList = z.preprocess(
+  (v) => (v === undefined ? [] : Array.isArray(v) ? v : [v]),
+  z.array(z.enum(SECTIONS))
+);
+
 export const createAccountSchema = z.object({
   displayName: z.string().trim().min(2).max(60),
   username: z
@@ -15,6 +36,8 @@ export const createAccountSchema = z.object({
   password: z.string().min(6).max(100),
   role: z.enum(ROLES),
   canAddVideos: checkbox,
+  /** Only read when the new account is a manager. */
+  sections: sectionList,
 });
 
 export const updateAccountSchema = z.object({

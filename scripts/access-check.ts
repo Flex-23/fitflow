@@ -136,6 +136,30 @@ async function main() {
     }
   }
 
+  // A manager created with a chosen set must see exactly that set from its
+  // first sign-in — which is the whole point of picking the sections on the
+  // form. Made and removed here, so this is safe against real data.
+  const chosen: Section[] = ["RECEPTION", "FINANCE"];
+  const fresh = await prisma.user.create({
+    data: {
+      displayName: "Access check",
+      username: `accesscheck_${Date.now()}`,
+      role: "MANAGER",
+      hashedPassword: "x".repeat(60),
+      canAddVideos: true,
+      sections: chosen,
+    },
+  });
+  try {
+    wrong += await check(
+      `a new manager created with: ${chosen.join(", ")}`,
+      await cookieFor(fresh.id),
+      new Set(chosen)
+    );
+  } finally {
+    await prisma.user.delete({ where: { id: fresh.id } });
+  }
+
   console.log(wrong === 0 ? "\nEvery page answered as it should." : `\n${wrong} page(s) answered wrongly.`);
   process.exit(wrong === 0 ? 0 : 1);
 }

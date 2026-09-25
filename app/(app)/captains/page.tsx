@@ -46,7 +46,12 @@ export default async function CaptainsPage() {
         title={dict.manager.accountsTitle}
         description={dict.manager.accountsSubtitle}
       />
-      <AccountsManager accounts={accounts} dict={dict} locale={locale} />
+      <AccountsManager
+        accounts={accounts}
+        dict={dict}
+        locale={locale}
+        isMaster={me.role === "MASTER"}
+      />
     </div>
   );
 }

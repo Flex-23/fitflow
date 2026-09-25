@@ -26,11 +26,17 @@ export async function createAccount(
   formData: FormData
 ): Promise<ActionState> {
   const manager = await requireSection("STAFF");
-  const parsed = createAccountSchema.safeParse(Object.fromEntries(formData));
+  // getAll for the checkbox group: Object.fromEntries keeps only the last
+  // value of a repeated field, which would silently drop every section but
+  // one and hand the new manager far less than was ticked.
+  const parsed = createAccountSchema.safeParse({
+    ...Object.fromEntries(formData),
+    sections: formData.getAll("sections"),
+  });
   if (!parsed.success) {
     return { error: "invalid", fieldErrors: parsed.error.flatten().fieldErrors };
   }
-  const { displayName, username, password, role, canAddVideos } = parsed.data;
+  const { displayName, username, password, role, canAddVideos, sections } = parsed.data;
   if (role === "MANAGER" && manager.role !== "MASTER") return { error: "forbidden" };
 
   const existing = await prisma.user.findUnique({ where: { username } });
@@ -44,6 +50,10 @@ export async function createAccount(
       hashedPassword: await hashPassword(password),
       // Managers always may; captains only when granted; reception never.
       canAddVideos: role === "MANAGER" ? true : role === "CAPTAIN" ? canAddVideos : false,
+      // Chosen on the form, so a manager arrives with the access that was
+      // agreed rather than existing for a while with none. Meaningless for
+      // the other roles, whose remit comes with the job.
+      sections: role === "MANAGER" ? sections : [],
       createdById: manager.id,
     },
   });
@@ -52,7 +62,10 @@ export async function createAccount(
     action: "CREATE_USER",
     targetType: "User",
     targetId: user.id,
-    details: `${displayName} (${role})`,
+    details:
+      role === "MANAGER"
+        ? `${displayName} (${role}) • ${sections.join(", ") || "—"}`
+        : `${displayName} (${role})`,
   });
   revalidatePath("/captains");
   return { ok: true };

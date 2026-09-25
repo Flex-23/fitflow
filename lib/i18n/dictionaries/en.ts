@@ -333,6 +333,8 @@ const en = {
     newPassword: "New password",
     role: "Role",
     chooseRole: "Choose a role…",
+    sectionsLabel: "Sections this manager may open",
+    sectionsHelp: "Tick what they should see. You can change it later from the master screen.",
     canAddVideos: "Can add videos",
     canAddVideosDesc: "Allow this captain to upload videos to the library.",
     activeAccount: "Active",

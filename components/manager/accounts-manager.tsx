@@ -25,6 +25,7 @@ import {
   deleteAccount,
 } from "@/app/actions/accounts";
 import { emptyState, type ActionState } from "@/lib/action-state";
+import { SECTIONS } from "@/schemas/account";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -125,7 +126,9 @@ export function AccountsManager({
   accounts,
   dict,
   locale,
+  isMaster,
 }: {
+  isMaster: boolean;
   accounts: AccountRow[];
   dict: Dictionary;
   locale: Locale;
@@ -254,12 +257,18 @@ export function AccountsManager({
       )}
 
       <Dialog open={mode === "create"} onClose={() => setMode(null)} title={t.newAccount}>
-        <CreateForm dict={dict} onDone={() => setMode(null)} />
+        <CreateForm dict={dict} isMaster={isMaster} onDone={() => setMode(null)} />
       </Dialog>
 
       <Dialog open={mode === "edit"} onClose={() => setMode(null)} title={t.editAccount}>
         {selected && (
-          <EditForm key={selected.id} account={selected} dict={dict} onDone={() => setMode(null)} />
+          <EditForm
+            key={selected.id}
+            account={selected}
+            dict={dict}
+            isMaster={isMaster}
+            onDone={() => setMode(null)}
+          />
         )}
       </Dialog>
 
@@ -337,11 +346,14 @@ function RoleSelect({
   onChange,
   dict,
   required,
+  allowManager,
 }: {
   value: Role | "";
   onChange: (r: Role) => void;
   dict: Dictionary;
   required?: boolean;
+  /** Only the master may hand out the manager role. */
+  allowManager: boolean;
 }) {
   return (
     <Select
@@ -356,7 +368,7 @@ function RoleSelect({
       </option>
       <option value="RECEPTION">{dict.roles.reception}</option>
       <option value="CAPTAIN">{dict.roles.captain}</option>
-      <option value="MANAGER">{dict.roles.manager}</option>
+      {allowManager && <option value="MANAGER">{dict.roles.manager}</option>}
     </Select>
   );
 }
@@ -378,6 +390,40 @@ function VideoPermissionField({ dict, defaultChecked }: { dict: Dictionary; defa
   );
 }
 
+/**
+ * Which parts of the system a new manager starts with.
+ *
+ * Decided here rather than left for afterwards: a manager created with
+ * nothing is a manager who signs in to a blank screen and has to be found
+ * and fixed. Reception and captains never see this — their remit comes with
+ * the job, and there is nothing to choose.
+ */
+function SectionsField({ dict }: { dict: Dictionary }) {
+  const t = dict.manager;
+  return (
+    <fieldset className="space-y-2 rounded-xl border border-border p-3">
+      <legend className="px-1 text-sm font-medium">{t.sectionsLabel}</legend>
+      <p className="text-xs text-muted-foreground">{t.sectionsHelp}</p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {SECTIONS.map((section) => (
+          <label
+            key={section}
+            className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-accent"
+          >
+            <input
+              type="checkbox"
+              name="sections"
+              value={section}
+              className="size-4 accent-[var(--brand)]"
+            />
+            {dict.sections[section.toLowerCase() as "reception"]}
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
 function useAccountFeedback(state: ActionState, dict: Dictionary, onDone: () => void) {
   useEffect(() => {
     if (state.ok) {
@@ -389,7 +435,15 @@ function useAccountFeedback(state: ActionState, dict: Dictionary, onDone: () => 
   }, [state, onDone, dict]);
 }
 
-function CreateForm({ dict, onDone }: { dict: Dictionary; onDone: () => void }) {
+function CreateForm({
+  dict,
+  onDone,
+  isMaster,
+}: {
+  dict: Dictionary;
+  onDone: () => void;
+  isMaster: boolean;
+}) {
   const t = dict.manager;
   const [state, action, pending] = useActionState(createAccount, emptyState);
   const [role, setRole] = useState<Role | "">("");
@@ -439,9 +493,16 @@ function CreateForm({ dict, onDone }: { dict: Dictionary; onDone: () => void }) 
       </div>
       <div className="space-y-2">
         <Label htmlFor="role">{t.role}</Label>
-        <RoleSelect value={role} onChange={setRole} dict={dict} required />
+        <RoleSelect
+          value={role}
+          onChange={setRole}
+          dict={dict}
+          required
+          allowManager={isMaster}
+        />
       </div>
       {role === "CAPTAIN" && <VideoPermissionField dict={dict} />}
+      {role === "MANAGER" && <SectionsField dict={dict} />}
       <div className="flex justify-end gap-2 pt-1">
         <Button type="button" variant="ghost" onClick={onDone}>
           {dict.common.cancel}
@@ -458,10 +519,12 @@ function EditForm({
   account,
   dict,
   onDone,
+  isMaster,
 }: {
   account: AccountRow;
   dict: Dictionary;
   onDone: () => void;
+  isMaster: boolean;
 }) {
   const t = dict.manager;
   const [state, action, pending] = useActionState(updateAccount, emptyState);
@@ -486,7 +549,12 @@ function EditForm({
       </div>
       <div className="space-y-2">
         <Label htmlFor="role">{t.role}</Label>
-        <RoleSelect value={role} onChange={setRole} dict={dict} />
+        <RoleSelect
+          value={role}
+          onChange={setRole}
+          dict={dict}
+          allowManager={isMaster || account.role === "MANAGER"}
+        />
         {account.isSelf && <p className="text-xs text-muted-foreground">{t.selfLockout}</p>}
       </div>
       <label className="flex items-center gap-3 rounded-lg border border-border p-3">
