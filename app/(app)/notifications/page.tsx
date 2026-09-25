@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { CalendarClock, CalendarDays, Wallet, Snowflake, BellOff } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { requireRole } from "@/lib/auth/dal";
+import { requireSection } from "@/lib/auth/dal";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
 import { syncSubscriptions } from "@/lib/subscription-sync";
@@ -15,7 +15,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 export const metadata: Metadata = { title: "Notifications" };
 
 export default async function NotificationsPage() {
-  await requireRole("MANAGER");
+  await requireSection("MANAGEMENT");
   await syncSubscriptions();
 
   const locale = await getLocale();

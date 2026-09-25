@@ -23,13 +23,23 @@ export type LoginLabels = {
 export function LoginForm({
   labels,
   next,
+  signIn = login,
+  hidden,
 }: {
   labels: LoginLabels;
   /** Where to land after signing in, when the user was bounced from a page. */
   next?: string;
+  /**
+   * Which door this form opens. The master has one of its own, which accepts
+   * only master accounts — the ordinary form refuses them, so knowing the
+   * password is no use without knowing where to type it.
+   */
+  signIn?: (prev: LoginState, formData: FormData) => Promise<LoginState>;
+  /** Extra fields carried with the submission, such as the master gate. */
+  hidden?: Record<string, string>;
 }) {
   const [state, action, pending] = useActionState<LoginState, FormData>(
-    login,
+    signIn,
     {}
   );
 
@@ -45,6 +55,10 @@ export function LoginForm({
   return (
     <form action={action} className="space-y-5">
       {next && <input type="hidden" name="next" value={next} />}
+      {hidden &&
+        Object.entries(hidden).map(([name, value]) => (
+          <input key={name} type="hidden" name={name} value={value} />
+        ))}
       {errorMessage && (
         <div className="space-y-1 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
           <div className="flex items-center gap-2">

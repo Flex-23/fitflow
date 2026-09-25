@@ -1,10 +1,10 @@
 import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
-import type { Role } from "@prisma/client";
+import type { Role, Section } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "./session";
-import { canAccess, roleHome } from "./rbac";
+import { hasSection, homeFor, isMaster } from "./rbac";
 
 export type CurrentUser = {
   id: string;
@@ -13,6 +13,7 @@ export type CurrentUser = {
   role: Role;
   isActive: boolean;
   canAddVideos: boolean;
+  sections: Section[];
 };
 
 /**
@@ -32,6 +33,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
       role: true,
       isActive: true,
       canAddVideos: true,
+      sections: true,
     },
   });
 
@@ -54,13 +56,49 @@ export async function requireUser(): Promise<CurrentUser> {
 }
 
 /**
- * Require the user to hold one of the allowed roles (MANAGER always passes).
- * On mismatch, send the user back to their own home rather than a dead end.
+ * Require a section of the system.
+ *
+ * This is the guard every page uses, because "may this person open this" is a
+ * question about sections, not about job titles: two managers can hold
+ * different halves of the system, and the master decides which.
+ *
+ * On a refusal the user goes to their own home rather than a dead end.
+ */
+export async function requireSection(section: Section): Promise<CurrentUser> {
+  const user = await requireUser();
+  if (!hasSection(user, section)) redirect(homeFor(user));
+  return user;
+}
+
+/**
+ * Require any one of several sections.
+ *
+ * For the handful of actions two different people reach from two different
+ * screens — sending a member their link is done at the desk and from the
+ * course builder alike.
+ */
+export async function requireAnySection(...sections: Section[]): Promise<CurrentUser> {
+  const user = await requireUser();
+  if (!sections.some((s) => hasSection(user, s))) redirect(homeFor(user));
+  return user;
+}
+
+/**
+ * Require one of these roles outright.
+ *
+ * For the few places where the job title really is the question — the master's
+ * own screens, and guards that exist to stop a captain reaching a manager's
+ * action. Prefer `requireSection` for pages.
  */
 export async function requireRole(...allowed: Role[]): Promise<CurrentUser> {
   const user = await requireUser();
-  if (!canAccess(user.role, allowed)) {
-    redirect(roleHome(user.role));
-  }
+  if (!isMaster(user.role) && !allowed.includes(user.role)) redirect(homeFor(user));
+  return user;
+}
+
+/** The master's own screens. Everyone else is sent home. */
+export async function requireMaster(): Promise<CurrentUser> {
+  const user = await requireUser();
+  if (!isMaster(user.role)) redirect(homeFor(user));
   return user;
 }

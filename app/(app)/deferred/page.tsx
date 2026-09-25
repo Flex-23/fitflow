@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth/dal";
+import { requireSection } from "@/lib/auth/dal";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -15,7 +15,7 @@ export default async function DeferredPage({
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
-  const user = await requireRole("RECEPTION");
+  const user = await requireSection("RECEPTION");
   await syncSubscriptions();
   // Reception needs each member's own balance to collect payments; only the
   // gym-wide totals are the manager's business.

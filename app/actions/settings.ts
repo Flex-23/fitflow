@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/auth/dal";
+import { requireSection } from "@/lib/auth/dal";
 import { setSetting } from "@/lib/settings";
 import type { ActionState } from "@/lib/action-state";
 
@@ -9,7 +9,7 @@ export async function updateSettings(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  await requireRole("MANAGER");
+  await requireSection("MANAGEMENT");
   const threshold = parseInt(String(formData.get("expiringThreshold") ?? ""), 10);
   if (!Number.isFinite(threshold) || threshold < 0 || threshold > 60) {
     return { error: "invalid" };

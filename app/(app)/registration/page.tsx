@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
-import { requireRole } from "@/lib/auth/dal";
+import { requireSection } from "@/lib/auth/dal";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -13,7 +13,7 @@ import { Card } from "@/components/ui/card";
 export const metadata: Metadata = { title: "Registration" };
 
 export default async function RegistrationPage() {
-  const user = await requireRole("RECEPTION");
+  const user = await requireSection("RECEPTION");
   const locale = await getLocale();
   const dict = await getDictionary(locale);
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/auth/dal";
+import { requireSection } from "@/lib/auth/dal";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
 import { remainingBalance } from "@/lib/money";
@@ -13,7 +13,7 @@ export async function createDebt(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const user = await requireRole("MANAGER");
+  const user = await requireSection("FINANCE");
   const parsed = debtSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     return { error: "invalid", fieldErrors: parsed.error.flatten().fieldErrors };
@@ -54,7 +54,7 @@ export async function addDebtPayment(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const user = await requireRole("MANAGER");
+  const user = await requireSection("FINANCE");
   const parsed = debtPaymentSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     return { error: "invalid", fieldErrors: parsed.error.flatten().fieldErrors };
@@ -91,7 +91,7 @@ export async function addDebtPayment(
 }
 
 export async function deleteDebt(id: string): Promise<ActionState> {
-  const user = await requireRole("MANAGER");
+  const user = await requireSection("FINANCE");
   const debt = await prisma.debt.findUnique({
     where: { id },
     select: { personName: true, amount: true },

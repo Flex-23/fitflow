@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/auth/dal";
+import { requireSection } from "@/lib/auth/dal";
 import { paymentSchema } from "@/schemas/subscription";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
@@ -12,7 +12,7 @@ export async function addPayment(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const user = await requireRole("RECEPTION");
+  const user = await requireSection("RECEPTION");
   const parsed = paymentSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     return { error: "invalid", fieldErrors: parsed.error.flatten().fieldErrors };

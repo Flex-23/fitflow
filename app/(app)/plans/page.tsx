@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth/dal";
+import { requireSection } from "@/lib/auth/dal";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -10,7 +10,7 @@ import { PlansManager } from "@/components/reception/plans-manager";
 export const metadata: Metadata = { title: "Subscription plans" };
 
 export default async function PlansPage() {
-  await requireRole("MANAGER");
+  await requireSection("FINANCE");
   const locale = await getLocale();
   const dict = await getDictionary(locale);
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/auth/dal";
+import { requireSection } from "@/lib/auth/dal";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/auth/password";
 import { logActivity } from "@/lib/activity";
@@ -16,12 +16,12 @@ import {
 import type { ActionState } from "@/lib/action-state";
 
 export async function getBackups(): Promise<BackupInfo[]> {
-  await requireRole("MANAGER");
+  await requireSection("MANAGEMENT");
   return listBackups();
 }
 
 export async function makeBackup(): Promise<ActionState & { backup?: BackupInfo }> {
-  const user = await requireRole("MANAGER");
+  const user = await requireSection("MANAGEMENT");
   try {
     const backup = await createBackup();
     await logActivity({
@@ -39,7 +39,7 @@ export async function makeBackup(): Promise<ActionState & { backup?: BackupInfo 
 }
 
 export async function removeBackup(name: string): Promise<ActionState> {
-  await requireRole("MANAGER");
+  await requireSection("MANAGEMENT");
   const ok = await deleteBackup(name);
   revalidatePath("/backup");
   return ok ? { ok: true } : { error: "not_found" };
@@ -54,7 +54,7 @@ export async function restoreFromBackup(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const user = await requireRole("MANAGER");
+  const user = await requireSection("MANAGEMENT");
   const name = String(formData.get("name") ?? "");
   const password = String(formData.get("password") ?? "");
 

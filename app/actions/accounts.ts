@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole, requireUser } from "@/lib/auth/dal";
+import { requireSection, requireUser } from "@/lib/auth/dal";
 import {
   createAccountSchema,
   updateAccountSchema,
@@ -13,17 +13,25 @@ import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { logActivity } from "@/lib/activity";
 import type { ActionState } from "@/lib/action-state";
 
-/** Managers can create any role, including other managers. */
+/**
+ * Who may create whom.
+ *
+ * Holding the staff section is enough for reception and captains. A manager
+ * is different: managers hold permissions, and handing those out is the
+ * master's job alone — otherwise a manager could mint a second manager and
+ * grant it everything the master had withheld.
+ */
 export async function createAccount(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const manager = await requireRole("MANAGER");
+  const manager = await requireSection("STAFF");
   const parsed = createAccountSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     return { error: "invalid", fieldErrors: parsed.error.flatten().fieldErrors };
   }
   const { displayName, username, password, role, canAddVideos } = parsed.data;
+  if (role === "MANAGER" && manager.role !== "MASTER") return { error: "forbidden" };
 
   const existing = await prisma.user.findUnique({ where: { username } });
   if (existing) return { error: "username_taken" };
@@ -63,7 +71,7 @@ export async function updateAccount(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const manager = await requireRole("MANAGER");
+  const manager = await requireSection("STAFF");
   const parsed = updateAccountSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     return { error: "invalid", fieldErrors: parsed.error.flatten().fieldErrors };
@@ -72,6 +80,14 @@ export async function updateAccount(
 
   const target = await prisma.user.findUnique({ where: { id } });
   if (!target) return { error: "not_found" };
+
+  // The master is edited from its own screen, not from the staff roster —
+  // where it does not even appear.
+  if (target.role === "MASTER") return { error: "forbidden" };
+  // Promoting someone to manager hands out permissions; only the master may.
+  if (role === "MANAGER" && target.role !== "MANAGER" && manager.role !== "MASTER") {
+    return { error: "forbidden" };
+  }
 
   // You cannot demote or deactivate yourself, and the last active manager
   // must stay a manager.
@@ -105,11 +121,19 @@ export async function resetPassword(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const manager = await requireRole("MANAGER");
+  const manager = await requireSection("STAFF");
   const parsed = resetPasswordSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     return { error: "invalid", fieldErrors: parsed.error.flatten().fieldErrors };
   }
+  // Nobody resets the master's password from here; it changes its own.
+  const target = await prisma.user.findUnique({
+    where: { id: parsed.data.id },
+    select: { role: true },
+  });
+  if (!target) return { error: "not_found" };
+  if (target.role === "MASTER") return { error: "forbidden" };
+
   await prisma.user.update({
     where: { id: parsed.data.id },
     data: { hashedPassword: await hashPassword(parsed.data.password) },
@@ -125,7 +149,7 @@ export async function resetPassword(
 }
 
 export async function toggleVideoPermission(id: string, canAddVideos: boolean) {
-  const manager = await requireRole("MANAGER");
+  const manager = await requireSection("STAFF");
   const target = await prisma.user.findUnique({ where: { id } });
   if (!target || target.role !== "CAPTAIN") return;
   await prisma.user.update({ where: { id }, data: { canAddVideos } });
@@ -146,9 +170,10 @@ export async function toggleVideoPermission(id: string, canAddVideos: boolean) {
  * "created by" link, so no gym data is ever lost with a staff member.
  */
 export async function deleteAccount(id: string): Promise<ActionState> {
-  const manager = await requireRole("MANAGER");
+  const manager = await requireSection("STAFF");
   const target = await prisma.user.findUnique({ where: { id } });
   if (!target) return { error: "not_found" };
+  if (target.role === "MASTER") return { error: "forbidden" };
   if (target.id === manager.id) return { error: "self_lockout" };
   if (!(await lastActiveManagerCheck(id, target.role === "MANAGER"))) {
     return { error: "last_manager" };

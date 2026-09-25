@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { after } from "next/server";
 import { requireUser } from "@/lib/auth/dal";
+import { hasSection, sectionsFor } from "@/lib/auth/rbac";
 import { ensureDailyBackup } from "@/lib/backup";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
@@ -26,12 +27,13 @@ export default async function AppLayout({
   const user = await requireUser();
   const locale = await getLocale();
   const dict = await getDictionary(locale);
-  const notificationCount =
-    user.role === "MANAGER" ? await getNotificationCount() : 0;
+  // Both of these belong to the management section, not to a job title.
+  const manages = hasSection(user, "MANAGEMENT");
+  const notificationCount = manages ? await getNotificationCount() : 0;
 
   // First visit of the day writes a snapshot; runs after the response so it
   // never slows a page down.
-  if (user.role === "MANAGER") after(() => ensureDailyBackup());
+  if (manages) after(() => ensureDailyBackup());
 
   return (
     <AppShell
@@ -39,6 +41,7 @@ export default async function AppLayout({
         displayName: user.displayName,
         role: user.role,
         canAddVideos: user.canAddVideos,
+        sections: sectionsFor(user),
       }}
       dict={dict}
       locale={locale}

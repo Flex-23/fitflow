@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { verifyPassword, DUMMY_HASH } from "@/lib/auth/password";
 import { createSession, deleteSession } from "@/lib/auth/session";
 import { roleHome } from "@/lib/auth/rbac";
+import { isMasterGate } from "@/lib/auth/master-gate";
 import {
   clientKey,
   lockedFor,
@@ -79,6 +80,14 @@ export async function login(
     return { error: "disabled" };
   }
 
+  // The master signs in at its own address and nowhere else. Reported as bad
+  // credentials rather than "wrong door", which would confirm the account
+  // exists to anyone who found the name.
+  if (user.role === "MASTER") {
+    await recordFailure(keys[0], LOGIN_RULE);
+    return { error: "invalid_credentials" };
+  }
+
   await Promise.all(keys.map(clearFailures));
 
   await createSession({
@@ -94,4 +103,65 @@ export async function login(
 export async function logout() {
   await deleteSession();
   redirect("/login");
+}
+
+/**
+ * The master's own door.
+ *
+ * Everything the ordinary sign-in does — same throttle, same constant-time
+ * hashing, same silence about which half was wrong — with two differences:
+ * the caller must have arrived through the secret address, and only a master
+ * account is accepted. A manager's password typed here fails exactly as a
+ * wrong password does.
+ */
+export async function masterLogin(
+  _prev: LoginState,
+  formData: FormData
+): Promise<LoginState> {
+  // Whoever is calling has to know the address, not merely the action.
+  const gate = formData.get("gate");
+  if (typeof gate !== "string" || !isMasterGate(gate)) {
+    return { error: "invalid_credentials" };
+  }
+
+  const parsed = loginSchema.safeParse({
+    username: formData.get("username"),
+    password: formData.get("password"),
+  });
+  if (!parsed.success) return { error: "invalid" };
+
+  const { username, password } = parsed.data;
+  const ip = await clientKey();
+  const keys = [`master:ip:${ip}`, `master:user:${username.toLowerCase()}`];
+
+  const locked = Math.max(...(await Promise.all(keys.map(lockedFor))));
+  if (locked > 0) {
+    return { error: "locked", lockedMinutes: Math.ceil(locked / 60_000) };
+  }
+
+  const user = await prisma.user.findUnique({ where: { username } });
+  const ok = await verifyPassword(password, user?.hashedPassword ?? DUMMY_HASH);
+
+  // One answer for "no such user", "wrong password" and "not the master", so
+  // this page cannot be used to find out which accounts are which.
+  if (!user || !ok || user.role !== "MASTER" || !user.isActive) {
+    const lockMs = Math.max(
+      ...(await Promise.all(keys.map((k) => recordFailure(k, LOGIN_RULE))))
+    );
+    if (lockMs > 0) {
+      return { error: "locked", lockedMinutes: Math.ceil(lockMs / 60_000) };
+    }
+    return { error: "invalid_credentials" };
+  }
+
+  await Promise.all(keys.map(clearFailures));
+
+  await createSession({
+    userId: user.id,
+    role: user.role,
+    username: user.username,
+    displayName: user.displayName,
+  });
+
+  redirect("/master");
 }

@@ -34,6 +34,21 @@ export const changeOwnPasswordSchema = z
   })
   .refine((d) => d.newPassword === d.confirm, { path: ["confirm"], message: "mismatch" });
 
+/**
+ * The master changing its own name and password. The password is optional:
+ * moving the username alone is a legitimate thing to want.
+ */
+export const masterCredentialsSchema = z.object({
+  username: z
+    .string()
+    .trim()
+    .min(3)
+    .max(40)
+    .regex(/^[a-zA-Z0-9_.-]+$/),
+  currentPassword: z.string().min(1),
+  newPassword: z.union([z.string().min(6).max(100), z.literal("")]).optional(),
+});
+
 export const resetPasswordSchema = z.object({
   id: z.string().min(1),
   password: z.string().min(6).max(100),

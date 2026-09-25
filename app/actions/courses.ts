@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { nanoid } from "nanoid";
 import type { Prisma } from "@prisma/client";
-import { requireRole } from "@/lib/auth/dal";
+import { requireSection } from "@/lib/auth/dal";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
 import { trainingCourseSchema } from "@/schemas/course";
@@ -11,7 +11,7 @@ import { purgeExpiredCourses, twoMonthsFromNow } from "@/lib/courses";
 import { sendCourseLink, type PortalLinkResult } from "@/lib/portal-delivery";
 
 export async function searchMembers(query: string) {
-  await requireRole("CAPTAIN");
+  await requireSection("COACHING");
   const q = query.trim();
   if (!q) return [];
   return prisma.member.findMany({
@@ -115,7 +115,7 @@ function serializeCourse(course: {
 
 /** Profile only (no course history) — enough for the nutrition builder. */
 export async function getMemberProfile(memberId: string): Promise<MemberTrainingProfile | null> {
-  await requireRole("CAPTAIN");
+  await requireSection("COACHING");
   const now = new Date();
   const member = await prisma.member.findUnique({
     where: { id: memberId },
@@ -165,7 +165,7 @@ function toProfile(member: MemberWithSubs, now: Date): MemberTrainingProfile {
 export async function getMemberTraining(
   memberId: string
 ): Promise<{ member: MemberTrainingProfile; courses: TrainingCourseDTO[] } | null> {
-  await requireRole("CAPTAIN");
+  await requireSection("COACHING");
   await purgeExpiredCourses();
 
   const now = new Date();
@@ -193,7 +193,7 @@ export async function createTrainingCourse(input: unknown): Promise<{
   link?: PortalLinkResult;
   error?: string;
 }> {
-  const user = await requireRole("CAPTAIN");
+  const user = await requireSection("COACHING");
   const parsed = trainingCourseSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "invalid" };
   const d = parsed.data;
@@ -256,7 +256,7 @@ export async function updateTemplate(
   id: string,
   input: unknown
 ): Promise<{ ok: boolean; error?: string }> {
-  const user = await requireRole("CAPTAIN");
+  const user = await requireSection("COACHING");
   const parsed = trainingCourseSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "invalid" };
   const d = parsed.data;
@@ -307,7 +307,7 @@ export async function updateTemplate(
 }
 
 export async function deleteTemplate(id: string): Promise<{ ok: boolean }> {
-  const user = await requireRole("CAPTAIN");
+  const user = await requireSection("COACHING");
   const tpl = await prisma.trainingCourse.findFirst({
     where: { id, isTemplate: true },
     select: { title: true },

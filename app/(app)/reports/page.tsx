@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth/dal";
+import { requireSection } from "@/lib/auth/dal";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
 import {
@@ -34,7 +34,7 @@ export default async function ReportsPage({
 }: {
   searchParams: Promise<{ mode?: string; day?: string; month?: string }>;
 }) {
-  await requireRole("MANAGER");
+  await requireSection("FINANCE");
   const { mode = "daily", day, month } = await searchParams;
   const locale = await getLocale();
   const dict = await getDictionary(locale);

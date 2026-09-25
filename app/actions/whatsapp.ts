@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/auth/dal";
+import { requireSection } from "@/lib/auth/dal";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
 import { type CourseKind } from "@/lib/pdf/store";
@@ -52,7 +52,7 @@ export type WaStatus = {
 
 /** What the Settings page shows about WhatsApp delivery. Manager only. */
 export async function getWhatsAppStatus(): Promise<WaStatus> {
-  await requireRole("MANAGER");
+  await requireSection("MANAGEMENT");
 
   const [number, linkedAt, lastSeen, qr, qrAt, pairUntil, pending, failed] = await Promise.all([
     getSetting(WA_NUMBER_KEY, ""),
@@ -103,7 +103,7 @@ export async function getWhatsAppStatus(): Promise<WaStatus> {
  * gym's WhatsApp account exists only while someone is there to use it.
  */
 export async function startPairing(): Promise<{ ok: boolean }> {
-  await requireRole("MANAGER");
+  await requireSection("MANAGEMENT");
   const until = new Date(Date.now() + PAIR_WINDOW_MS).toISOString();
 
   await prisma.$transaction([
@@ -136,7 +136,7 @@ export async function sendCourseToMember(
   kind: CourseKind,
   courseId: string
 ): Promise<QueueCourseResult> {
-  const user = await requireRole("CAPTAIN");
+  const user = await requireSection("COACHING");
   // Paused, and refused here as well as hidden in the UI — a server action is
   // reachable without the button that normally calls it.
   if (!canSendCourses()) return { ok: false, reason: "disabled" };
@@ -191,7 +191,7 @@ export async function sendCourseToMember(
 
 /** Drop a failed delivery, or queue it again. Manager only. */
 export async function retryFailedSends(): Promise<{ retried: number }> {
-  await requireRole("MANAGER");
+  await requireSection("MANAGEMENT");
   const { count } = await prisma.whatsAppOutbox.updateMany({
     where: { status: "FAILED" },
     data: { status: "PENDING", attempts: 0, lastError: null },
@@ -201,7 +201,7 @@ export async function retryFailedSends(): Promise<{ retried: number }> {
 }
 
 export async function clearFailedSends(): Promise<{ removed: number }> {
-  await requireRole("MANAGER");
+  await requireSection("MANAGEMENT");
   const { count } = await prisma.whatsAppOutbox.deleteMany({ where: { status: "FAILED" } });
   revalidatePath("/settings");
   return { removed: count };

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth/dal";
+import { requireSection } from "@/lib/auth/dal";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
 import { purgeExpiredCourses } from "@/lib/courses";
@@ -10,7 +10,7 @@ import { NutritionBuilder } from "@/components/captain/nutrition-builder";
 export const metadata: Metadata = { title: "Nutrition course" };
 
 export default async function NutritionPage() {
-  await requireRole("CAPTAIN");
+  await requireSection("COACHING");
   await purgeExpiredCourses();
 
   const locale = await getLocale();

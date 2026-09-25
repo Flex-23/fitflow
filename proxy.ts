@@ -9,7 +9,10 @@ import { roleHome } from "@/lib/auth/rbac";
 // and "/me" is the member's own page, which carries a member session rather
 // than a staff one. "/offline" is the page the service worker keeps a copy of,
 // so it must render without a session — there is no server to check one.
-const PUBLIC_PREFIXES = ["/login", "/watch", "/p", "/me", "/offline"];
+// "/access" is the master's own sign-in, at an address only the owner knows;
+// the page itself 404s unless the segment matches, so letting the prefix
+// through here reveals nothing.
+const PUBLIC_PREFIXES = ["/login", "/watch", "/p", "/me", "/offline", "/access"];
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;

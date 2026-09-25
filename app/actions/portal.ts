@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/auth/dal";
+import { requireAnySection } from "@/lib/auth/dal";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
 import { deliverPortalLink, type PortalLinkResult } from "@/lib/portal-delivery";
@@ -13,7 +13,7 @@ export type { PortalLinkResult };
 export async function sendPortalLink(memberId: string): Promise<PortalLinkResult> {
   // Captains send this too — it is how a member reaches the course they
   // just wrote.
-  const user = await requireRole("RECEPTION", "CAPTAIN");
+  const user = await requireAnySection("RECEPTION", "COACHING");
 
   const member = await prisma.member.findUnique({
     where: { id: memberId },
@@ -33,7 +33,7 @@ export async function sendPortalLink(memberId: string): Promise<PortalLinkResult
  * the next link the desk sends brings them back.
  */
 export async function revokeMemberDevices(memberId: string): Promise<{ ok: boolean }> {
-  const user = await requireRole("RECEPTION", "CAPTAIN");
+  const user = await requireAnySection("RECEPTION", "COACHING");
 
   const member = await prisma.member.findUnique({
     where: { id: memberId },

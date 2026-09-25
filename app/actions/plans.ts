@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/auth/dal";
+import { requireSection } from "@/lib/auth/dal";
 import { planSchema } from "@/schemas/plan";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
@@ -12,7 +12,7 @@ export async function savePlan(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const user = await requireRole("MANAGER");
+  const user = await requireSection("FINANCE");
   const id = String(formData.get("id") ?? "");
   const parsed = planSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
@@ -50,7 +50,7 @@ export async function savePlan(
 }
 
 export async function togglePlanActive(id: string, isActive: boolean) {
-  const user = await requireRole("MANAGER");
+  const user = await requireSection("FINANCE");
   await prisma.subscriptionPlan.update({ where: { id }, data: { isActive } });
   await logActivity({
     userId: user.id,

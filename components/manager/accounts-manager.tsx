@@ -59,11 +59,15 @@ export type AccountRow = {
 };
 
 const roleIcon: Record<Role, typeof Crown> = {
-  MANAGER: Crown,
+  // The master never appears in this roster, but the map must still cover
+  // every role the type allows.
+  MASTER: Crown,
+  MANAGER: ShieldCheck,
   CAPTAIN: Dumbbell,
   RECEPTION: Headset,
 };
 const roleTone: Record<Role, "brand" | "secondary" | "muted"> = {
+  MASTER: "brand",
   MANAGER: "brand",
   CAPTAIN: "secondary",
   RECEPTION: "muted",

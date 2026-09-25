@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/auth/dal";
+import { requireSection } from "@/lib/auth/dal";
 import { freezeSchema, cancelSchema, renewSchema } from "@/schemas/subscription";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
@@ -11,7 +11,7 @@ export async function freezeSubscription(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const user = await requireRole("RECEPTION");
+  const user = await requireSection("RECEPTION");
   const parsed = freezeSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     return { error: "invalid", fieldErrors: parsed.error.flatten().fieldErrors };
@@ -61,7 +61,7 @@ export async function freezeSubscription(
 }
 
 export async function unfreezeSubscription(subscriptionId: string) {
-  const user = await requireRole("RECEPTION");
+  const user = await requireSection("RECEPTION");
   const sub = await prisma.subscription.findUnique({ where: { id: subscriptionId } });
   if (!sub || sub.status !== "FROZEN") return;
 
@@ -84,7 +84,7 @@ export async function cancelSubscription(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const user = await requireRole("RECEPTION");
+  const user = await requireSection("RECEPTION");
   const parsed = cancelSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     return { error: "invalid", fieldErrors: parsed.error.flatten().fieldErrors };
@@ -112,7 +112,7 @@ export async function renewSubscription(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const user = await requireRole("RECEPTION");
+  const user = await requireSection("RECEPTION");
   const parsed = renewSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     return { error: "invalid", fieldErrors: parsed.error.flatten().fieldErrors };

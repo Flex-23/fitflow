@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/auth/dal";
+import { requireSection } from "@/lib/auth/dal";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
 import { expenseSchema } from "@/schemas/finance";
@@ -11,7 +11,7 @@ export async function createExpense(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const user = await requireRole("MANAGER");
+  const user = await requireSection("FINANCE");
   const parsed = expenseSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     return { error: "invalid", fieldErrors: parsed.error.flatten().fieldErrors };
@@ -43,7 +43,7 @@ export async function createExpense(
 }
 
 export async function deleteExpense(id: string): Promise<ActionState> {
-  const user = await requireRole("MANAGER");
+  const user = await requireSection("FINANCE");
   const expense = await prisma.expense.findUnique({
     where: { id },
     select: { title: true, amount: true },

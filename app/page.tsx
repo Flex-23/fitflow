@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/dal";
-import { roleHome } from "@/lib/auth/rbac";
+import { homeFor } from "@/lib/auth/rbac";
 import { getMemberSession } from "@/lib/member-session";
 
 /**
@@ -16,7 +16,7 @@ import { getMemberSession } from "@/lib/member-session";
  */
 export default async function Home() {
   const staff = await getCurrentUser();
-  if (staff) redirect(roleHome(staff.role));
+  if (staff) redirect(homeFor(staff));
 
   const member = await getMemberSession();
   if (member) redirect("/me");

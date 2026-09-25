@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth/dal";
+import { requireSection } from "@/lib/auth/dal";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -20,7 +20,7 @@ export default async function ArchivePage({
 }: {
   searchParams: Promise<{ q?: string; page?: string }>;
 }) {
-  await requireRole("MANAGER");
+  await requireSection("MANAGEMENT");
   await syncSubscriptions();
 
   const { q, page } = await searchParams;

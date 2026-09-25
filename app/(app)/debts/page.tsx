@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth/dal";
+import { requireSection } from "@/lib/auth/dal";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -15,7 +15,7 @@ export default async function DebtsPage({
 }: {
   searchParams: Promise<{ q?: string; page?: string }>;
 }) {
-  await requireRole("MANAGER");
+  await requireSection("FINANCE");
   const { q, page } = await searchParams;
   const locale = await getLocale();
   const dict = await getDictionary(locale);

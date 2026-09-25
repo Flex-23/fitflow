@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/auth/dal";
+import { requireSection } from "@/lib/auth/dal";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -9,12 +9,14 @@ import { AccountsManager } from "@/components/manager/accounts-manager";
 export const metadata: Metadata = { title: "Staff accounts" };
 
 export default async function CaptainsPage() {
-  const me = await requireRole("MANAGER");
+  const me = await requireSection("STAFF");
   const locale = await getLocale();
   const dict = await getDictionary(locale);
 
-  // Every account, managers included — the manager owns the whole roster.
+  // Every account a manager is allowed to know about. The master is not one
+  // of them: it signs in elsewhere and answers to nobody here.
   const raw = await prisma.user.findMany({
+    where: me.role === "MASTER" ? {} : { role: { not: "MASTER" } },
     select: {
       id: true,
       displayName: true,

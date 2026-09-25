@@ -13,7 +13,7 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { requireRole } from "@/lib/auth/dal";
+import { requireSection } from "@/lib/auth/dal";
 import { prisma } from "@/lib/prisma";
 import { syncSubscriptions } from "@/lib/subscription-sync";
 import { getLocale } from "@/lib/i18n/get-locale";
@@ -43,7 +43,7 @@ export const metadata: Metadata = { title: "Summary" };
  * the figure here and the figure there never disagree.
  */
 export default async function SummaryPage() {
-  await requireRole("MANAGER");
+  await requireSection("FINANCE");
   await syncSubscriptions();
 
   const locale = await getLocale();

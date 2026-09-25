@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/auth/dal";
+import { requireSection } from "@/lib/auth/dal";
 import { registrationSchema, memberSchema, measurementData } from "@/schemas/member";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
@@ -23,7 +23,7 @@ export async function registerMember(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const user = await requireRole("RECEPTION");
+  const user = await requireSection("RECEPTION");
 
   const parsed = registrationSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
@@ -112,7 +112,7 @@ export async function updateMember(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const user = await requireRole("RECEPTION");
+  const user = await requireSection("RECEPTION");
   const id = String(formData.get("id") ?? "");
   if (!id) return { error: "invalid" };
 
@@ -162,7 +162,7 @@ export async function updateMember(
  * rows rather than stored.
  */
 export async function deleteMember(id: string): Promise<ActionState> {
-  const user = await requireRole("RECEPTION");
+  const user = await requireSection("RECEPTION");
   if (!id) return { error: "invalid" };
 
   const member = await prisma.member.findUnique({
@@ -186,7 +186,7 @@ export async function deleteMember(id: string): Promise<ActionState> {
 
 /** Bulk removal from the members archive. Manager only. */
 export async function deleteMembers(ids: string[]): Promise<ActionState> {
-  const user = await requireRole("MANAGER");
+  const user = await requireSection("RECEPTION");
   const unique = [...new Set(ids.filter(Boolean))];
   if (unique.length === 0) return { error: "invalid" };
 

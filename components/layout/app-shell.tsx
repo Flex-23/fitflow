@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { Role } from "@prisma/client";
+import type { Role, Section } from "@prisma/client";
 import {
   UserPlus,
   Tags,
@@ -23,6 +23,7 @@ import {
   Bell,
   Settings,
   DatabaseBackup,
+  Crown,
   DoorOpen,
   LayoutDashboard,
   LogOut,
@@ -47,6 +48,8 @@ export type ShellUser = {
   displayName: string;
   role: Role;
   canAddVideos: boolean;
+  /** The sections this person holds, worked out once on the server. */
+  sections: Section[];
 };
 
 export function AppShell({
@@ -65,19 +68,20 @@ export function AppShell({
   const [open, setOpen] = useState(false);
   const n = dict.nav;
 
-  const isManager = user.role === "MANAGER";
-  const isReception = user.role === "RECEPTION";
-  const isCaptain = user.role === "CAPTAIN";
-  const canReception = isManager || isReception;
-  const canCoach = isManager || isCaptain;
-  const canVideos = isManager || (isCaptain && user.canAddVideos);
+  // One question per group, asked of the sections the server worked out —
+  // so a manager the master has given half the system sees exactly that half.
+  const has = (section: Section) => user.sections.includes(section);
+  const isMaster = user.role === "MASTER";
 
   const groups: NavGroup[] = [
-    // The manager's own landing screen sits above the role groups, on its own.
-    isManager && {
+    isMaster && {
+      items: [{ href: "/master", label: n.master, icon: Crown }],
+    },
+    // The summary is built from money, so it follows the finance section.
+    has("FINANCE") && {
       items: [{ href: "/summary", label: n.summary, icon: LayoutDashboard }],
     },
-    canReception && {
+    has("RECEPTION") && {
       heading: n.reception,
       items: [
         { href: "/registration", label: n.registration, icon: UserPlus },
@@ -88,18 +92,18 @@ export function AppShell({
         { href: "/gate", label: n.gate, icon: DoorOpen },
       ],
     },
-    canCoach && {
+    has("COACHING") && {
       heading: n.coaching,
       items: [
         { href: "/training", label: n.training, icon: Dumbbell },
         { href: "/nutrition", label: n.nutrition, icon: Salad },
       ],
     },
-    canVideos && {
+    has("LIBRARY") && {
       heading: n.library,
       items: [{ href: "/videos", label: n.videos, icon: Video }],
     },
-    isManager && {
+    has("FINANCE") && {
       heading: n.finance,
       items: [
         { href: "/reports", label: n.reports, icon: LineChart },
@@ -109,11 +113,16 @@ export function AppShell({
         { href: "/plans", label: n.plans, icon: Tags },
       ],
     },
-    isManager && {
+    // Staff accounts are their own grant: a manager can be trusted with the
+    // money without being trusted to create logins.
+    has("STAFF") && {
+      heading: n.staffSection,
+      items: [{ href: "/captains", label: n.staff, icon: ShieldCheck }],
+    },
+    has("MANAGEMENT") && {
       heading: n.management,
       items: [
         { href: "/archive", label: n.archive, icon: Archive },
-        { href: "/captains", label: n.staff, icon: ShieldCheck },
         { href: "/activity", label: n.activityLog, icon: ScrollText },
         {
           href: "/notifications",

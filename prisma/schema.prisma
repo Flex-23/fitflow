@@ -18,9 +18,30 @@ datasource db {
 // ────────────────────────────── Enums ──────────────────────────────
 
 enum Role {
+  /// The owner. One account, reached by its own hidden address, that can see
+  /// and do everything — including deciding what each manager may open.
+  MASTER
   MANAGER
   RECEPTION
   CAPTAIN
+}
+
+/// A part of the system a manager may be given, matching the groups in the
+/// sidebar so a granted section is a visible, whole thing rather than a
+/// scattering of pages.
+enum Section {
+  /// Registration, subscriptions, members, the gate.
+  RECEPTION
+  /// Training and nutrition courses.
+  COACHING
+  /// The exercise video library.
+  LIBRARY
+  /// Reports, expenses, debts, plans.
+  FINANCE
+  /// Archive, activity log, notifications, settings, backup.
+  MANAGEMENT
+  /// Creating and editing staff accounts.
+  STAFF
 }
 
 enum PaymentMethod {
@@ -83,6 +104,7 @@ enum ActivityAction {
   SEND_COURSE
   SEND_PORTAL_LINK
   REVOKE_PORTAL_ACCESS
+  SET_PERMISSIONS
 }
 
 enum NotificationType {
@@ -104,6 +126,10 @@ model User {
   isActive       Boolean  @default(true)
   // Per-captain permission: may the captain add videos to the library?
   canAddVideos   Boolean  @default(false)
+  /// Which parts of the system this manager may open, decided by the master.
+  /// Meaningless for the other roles: a master sees everything, and reception
+  /// and captains have a fixed remit that comes with the job.
+  sections       Section[] @default([])
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

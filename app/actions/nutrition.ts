@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { nanoid } from "nanoid";
-import { requireRole } from "@/lib/auth/dal";
+import { requireSection } from "@/lib/auth/dal";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
 import { nutritionCourseSchema } from "@/schemas/course";
@@ -10,7 +10,7 @@ import { twoMonthsFromNow } from "@/lib/courses";
 import { sendCourseLink, type PortalLinkResult } from "@/lib/portal-delivery";
 
 export async function searchMeals(query: string) {
-  await requireRole("CAPTAIN");
+  await requireSection("COACHING");
   const q = query.trim();
   return prisma.mealSuggestion.findMany({
     where: q ? { text: { contains: q, mode: "insensitive" as const } } : {},
@@ -21,7 +21,7 @@ export async function searchMeals(query: string) {
 }
 
 export async function getMemberForNutrition(memberId: string) {
-  await requireRole("CAPTAIN");
+  await requireSection("COACHING");
   const member = await prisma.member.findUnique({
     where: { id: memberId },
     select: { id: true, name: true, phone: true, age: true },
@@ -37,7 +37,7 @@ export async function createNutritionCourse(input: unknown): Promise<{
   link?: PortalLinkResult;
   error?: string;
 }> {
-  const user = await requireRole("CAPTAIN");
+  const user = await requireSection("COACHING");
   const parsed = nutritionCourseSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "invalid" };
   const d = parsed.data;
