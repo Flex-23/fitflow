@@ -111,13 +111,13 @@ export function DeferredPayments({
           <Table className="min-w-[52rem] table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[5%] text-center">#</TableHead>
+                <TableHead justify="center" className="w-[5%]">#</TableHead>
                 <TableHead className="w-[20%]">{t.member}</TableHead>
                 <TableHead className="w-[17%]">{t.selectPlan}</TableHead>
-                <TableHead className="w-[12%]">{dict.common.status}</TableHead>
+                <TableHead justify="center" className="w-[12%]">{dict.common.status}</TableHead>
                 <TableHead className="w-[20%]">{t.received}</TableHead>
-                <TableHead className="w-[13%]">{t.remaining}</TableHead>
-                <TableHead className="w-[13%] text-end">{dict.common.actions}</TableHead>
+                <TableHead justify="end" className="w-[13%]">{t.remaining}</TableHead>
+                <TableHead justify="end" className="w-[13%]">{dict.common.actions}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -125,7 +125,7 @@ export function DeferredPayments({
                 const pct = r.total > 0 ? Math.min(100, Math.round((r.received / r.total) * 100)) : 0;
                 return (
                   <TableRow key={r.id}>
-                    <TableCell className="text-center text-xs font-semibold text-muted-foreground">
+                    <TableCell justify="center" className="text-xs font-semibold text-muted-foreground">
                       {i + 1}
                     </TableCell>
                     <TableCell>
@@ -141,7 +141,7 @@ export function DeferredPayments({
                         {t.expiresOn} {formatDate(r.endDate, locale)}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell justify="center">
                       <StatusBadge status={r.status} dict={dict} />
                     </TableCell>
                     <TableCell>
@@ -156,10 +156,10 @@ export function DeferredPayments({
                         />
                       </div>
                     </TableCell>
-                    <TableCell className="whitespace-nowrap font-bold text-warning">
+                    <TableCell justify="end" className="whitespace-nowrap font-bold tabular-nums text-warning">
                       {money(r.remaining)}
                     </TableCell>
-                    <TableCell className="text-end">
+                    <TableCell justify="end">
                       <Button variant="soft-brand" size="xs" onClick={() => setSelected(r)}>
                         <Plus />
                         {t.addPayment}

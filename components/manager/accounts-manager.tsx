@@ -169,13 +169,13 @@ export function AccountsManager({
           <Table className="min-w-[52rem] table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[5%] text-center">#</TableHead>
+                <TableHead justify="center" className="w-[5%]">#</TableHead>
                 <TableHead className="w-[24%]">{t.displayName}</TableHead>
                 <TableHead className="w-[15%]">{dict.auth.username}</TableHead>
                 <TableHead className="w-[13%]">{t.role}</TableHead>
                 <TableHead className="w-[10%]">{dict.common.status}</TableHead>
                 <TableHead className="w-[10%]">{t.canAddVideos}</TableHead>
-                <TableHead className="w-[23%] text-end">{dict.common.actions}</TableHead>
+                <TableHead justify="end" className="w-[23%]">{dict.common.actions}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -183,7 +183,7 @@ export function AccountsManager({
                 const Icon = roleIcon[a.role];
                 return (
                   <TableRow key={a.id} className={cn(!a.isActive && "opacity-60")}>
-                    <TableCell className="text-center text-xs font-semibold text-muted-foreground">
+                    <TableCell justify="center" className="text-xs font-semibold text-muted-foreground">
                       {i + 1}
                     </TableCell>
                     <TableCell>

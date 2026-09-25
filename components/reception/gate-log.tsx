@@ -172,18 +172,18 @@ export function GateLog({
           <Table className="min-w-[40rem] table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[6%] text-center">#</TableHead>
+                <TableHead justify="center" className="w-[6%]">#</TableHead>
                 <TableHead className="w-[30%]">{t.member}</TableHead>
                 <TableHead className="w-[16%]">{t.card}</TableHead>
-                <TableHead className="w-[8%] text-center">{t.door}</TableHead>
+                <TableHead justify="center" className="w-[8%]">{t.door}</TableHead>
                 <TableHead className="w-[28%]">{t.result}</TableHead>
-                <TableHead className="w-[12%]">{t.when}</TableHead>
+                <TableHead justify="center" className="w-[12%]">{t.when}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.map((r, i) => (
                 <TableRow key={r.id}>
-                  <TableCell className="text-center text-xs font-semibold text-muted-foreground">
+                  <TableCell justify="center" className="text-xs font-semibold text-muted-foreground">
                     {rows.length - i}
                   </TableCell>
                   <TableCell>
@@ -204,7 +204,7 @@ export function GateLog({
                       {r.card}
                     </span>
                   </TableCell>
-                  <TableCell className="text-center tabular-nums">{r.door}</TableCell>
+                  <TableCell justify="center" className="tabular-nums">{r.door}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant={r.allowed ? "success" : "destructive"}>
@@ -217,7 +217,7 @@ export function GateLog({
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
+                  <TableCell justify="center" className="whitespace-nowrap tabular-nums text-muted-foreground">
                     {time(r.createdAt)}
                   </TableCell>
                 </TableRow>

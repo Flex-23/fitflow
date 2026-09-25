@@ -87,7 +87,7 @@ export function PlansManager({
                 <TableHead>{t.durationDays}</TableHead>
                 <TableHead>{dict.common.price}</TableHead>
                 <TableHead>{dict.common.status}</TableHead>
-                <TableHead className="text-end">{dict.common.actions}</TableHead>
+                <TableHead justify="end">{dict.common.actions}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

@@ -130,7 +130,7 @@ export function MembersArchive({
           <Table className="min-w-[48rem] table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[5%] text-center">
+                <TableHead justify="center" className="w-[5%]">
                   <input
                     type="checkbox"
                     checked={allSelected}
@@ -139,11 +139,11 @@ export function MembersArchive({
                     className="size-4 accent-brand"
                   />
                 </TableHead>
-                <TableHead className="w-[6%] text-center">#</TableHead>
+                <TableHead justify="center" className="w-[6%]">#</TableHead>
                 <TableHead className="w-[27%]">{dict.common.name}</TableHead>
                 <TableHead className="w-[18%]">{t.lastSubscription}</TableHead>
                 <TableHead className="w-[22%]">{t.absentSince}</TableHead>
-                <TableHead className="w-[22%] text-end">{dict.common.actions}</TableHead>
+                <TableHead justify="end" className="w-[22%]">{dict.common.actions}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -169,7 +169,7 @@ export function MembersArchive({
                       checked && "bg-brand/10 hover:bg-brand/15"
                     )}
                   >
-                    <TableCell className="text-center">
+                    <TableCell justify="center">
                       <input
                         type="checkbox"
                         checked={checked}
@@ -181,7 +181,7 @@ export function MembersArchive({
                         className="size-4 accent-brand"
                       />
                     </TableCell>
-                    <TableCell className="text-center text-xs font-semibold text-muted-foreground">
+                    <TableCell justify="center" className="text-xs font-semibold text-muted-foreground">
                       {paging.from + i}
                     </TableCell>
                     <TableCell>
@@ -209,7 +209,7 @@ export function MembersArchive({
                         {formatDate(m.absentSince, locale)}
                       </div>
                     </TableCell>
-                    <TableCell className="text-end">
+                    <TableCell justify="end">
                       <Button
                         variant="soft-brand"
                         size="xs"

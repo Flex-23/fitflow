@@ -268,9 +268,9 @@ export function ReportsView({
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[34%]">{t.date}</TableHead>
-                  <TableHead className="w-[22%]">{t.income}</TableHead>
-                  <TableHead className="w-[22%]">{t.totalExpenses}</TableHead>
-                  <TableHead className="w-[22%]">{t.net}</TableHead>
+                  <TableHead justify="end" className="w-[22%]">{t.income}</TableHead>
+                  <TableHead justify="end" className="w-[22%]">{t.totalExpenses}</TableHead>
+                  <TableHead justify="end" className="w-[22%]">{t.net}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -296,9 +296,10 @@ export function ReportsView({
                           {formatDate(`${d.date}T12:00:00`, locale)}
                         </span>
                       </TableCell>
-                      <TableCell className="text-success">{money(d.income)}</TableCell>
-                      <TableCell className="text-destructive">{money(d.expenses)}</TableCell>
+                      <TableCell justify="end" className="text-success">{money(d.income)}</TableCell>
+                      <TableCell justify="end" className="text-destructive">{money(d.expenses)}</TableCell>
                       <TableCell
+                        justify="end"
                         className={cn("font-semibold", d.net >= 0 ? "text-success" : "text-warning")}
                       >
                         {money(d.net)}

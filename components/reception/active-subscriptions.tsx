@@ -3,7 +3,15 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useActionState } from "react";
 import { toast } from "sonner";
-import { Snowflake, Ban, Play, BadgeCheck, Phone, CalendarClock } from "lucide-react";
+import {
+  Snowflake,
+  Ban,
+  Play,
+  BadgeCheck,
+  Phone,
+  CalendarClock,
+  ArrowRight,
+} from "lucide-react";
 import {
   freezeSubscription,
   cancelSubscription,
@@ -123,13 +131,23 @@ export function ActiveSubscriptions({
           <Table className="min-w-[56rem] table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[4%] text-center">#</TableHead>
-                <TableHead className="w-[20%]">{t.member}</TableHead>
-                <TableHead className="w-[14%]">{t.selectPlan}</TableHead>
-                <TableHead className="w-[16%]">{t.period}</TableHead>
-                <TableHead className="w-[13%]">{t.daysLeft}</TableHead>
-                <TableHead className="w-[15%]">{dict.common.status}</TableHead>
-                <TableHead className="w-[18%] text-end">{dict.common.actions}</TableHead>
+                <TableHead justify="center" className="w-[5%]">
+                  #
+                </TableHead>
+                <TableHead className="w-[22%]">{t.member}</TableHead>
+                <TableHead className="w-[12%]">{t.selectPlan}</TableHead>
+                <TableHead justify="center" className="w-[18%]">
+                  {t.period}
+                </TableHead>
+                <TableHead justify="center" className="w-[12%]">
+                  {t.daysLeft}
+                </TableHead>
+                <TableHead justify="center" className="w-[13%]">
+                  {dict.common.status}
+                </TableHead>
+                <TableHead justify="end" className="w-[18%]">
+                  {dict.common.actions}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -139,7 +157,10 @@ export function ActiveSubscriptions({
                 const upcoming = isUpcoming(r);
                 return (
                   <TableRow key={r.id}>
-                    <TableCell className="text-center text-xs font-semibold text-muted-foreground">
+                    <TableCell
+                      justify="center"
+                      className="text-xs font-semibold tabular-nums text-muted-foreground"
+                    >
                       {i + 1}
                     </TableCell>
                     <TableCell>
@@ -155,13 +176,25 @@ export function ActiveSubscriptions({
                         {r.method === "CASH" ? dict.method.cash : dict.method.deferred}
                       </div>
                     </TableCell>
-                    <TableCell className="whitespace-nowrap text-sm">
-                      <div className="text-muted-foreground">{formatDate(r.startDate, locale)}</div>
-                      <div className={soon ? "font-medium text-warning" : ""}>
-                        {formatDate(r.endDate, locale)}
+                    {/* One line, start to end, reading left to right like the
+                        numbers it is made of. Stacked, the two dates were a
+                        second two-line cell in a row that already had two,
+                        and neither said which was which. */}
+                    <TableCell justify="center" className="whitespace-nowrap">
+                      <div
+                        className="flex items-center justify-center gap-1.5 text-sm tabular-nums"
+                        dir="ltr"
+                      >
+                        <span className="text-muted-foreground">
+                          {formatDate(r.startDate, locale)}
+                        </span>
+                        <ArrowRight className="size-3.5 shrink-0 text-muted-foreground/60" />
+                        <span className={soon ? "font-medium text-warning" : "font-medium"}>
+                          {formatDate(r.endDate, locale)}
+                        </span>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell justify="center">
                       {upcoming ? (
                         <Badge variant="muted" className="gap-1.5 px-2.5 py-1 text-xs">
                           <CalendarClock className="size-3.5" />
@@ -171,8 +204,8 @@ export function ActiveSubscriptions({
                         <DaysLeft days={left} soon={soon} unit={dict.common.days} />
                       )}
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1.5">
+                    <TableCell justify="center">
+                      <div className="flex items-center justify-center gap-1.5">
                         <StatusBadge status={r.status} dict={dict} />
                         {upcoming && <Badge variant="brand">{t.upcoming}</Badge>}
                       </div>
@@ -182,7 +215,7 @@ export function ActiveSubscriptions({
                         </div>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell justify="end">
                       <div className="flex items-center justify-end gap-1.5">
                         {r.status === "FROZEN" ? (
                           <UnfreezeButton id={r.id} label={t.unfreeze} />

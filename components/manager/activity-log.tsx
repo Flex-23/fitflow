@@ -214,17 +214,17 @@ export function ActivityLog({
           <Table className="min-w-[44rem] table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[6%] text-center">#</TableHead>
+                <TableHead justify="center" className="w-[6%]">#</TableHead>
                 <TableHead className="w-[24%]">{t.user}</TableHead>
                 <TableHead className="w-[24%]">{t.action}</TableHead>
                 <TableHead className="w-[34%]">{t.details}</TableHead>
-                <TableHead className="w-[12%]">{t.when}</TableHead>
+                <TableHead justify="center" className="w-[12%]">{t.when}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.map((log, i) => (
                 <TableRow key={log.id}>
-                  <TableCell className="text-center text-xs font-semibold text-muted-foreground">
+                  <TableCell justify="center" className="text-xs font-semibold text-muted-foreground">
                     {rows.length - i}
                   </TableCell>
                   <TableCell>
@@ -237,7 +237,7 @@ export function ActivityLog({
                   <TableCell className="truncate text-muted-foreground" dir="auto" title={log.details ?? ""}>
                     {log.details ?? "—"}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
+                  <TableCell justify="center" className="whitespace-nowrap tabular-nums text-muted-foreground">
                     {time(log.createdAt)}
                   </TableCell>
                 </TableRow>

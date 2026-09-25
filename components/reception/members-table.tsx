@@ -157,23 +157,23 @@ export function MembersTable({
           <Table className="min-w-[40rem] table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[5%] text-center">#</TableHead>
+                <TableHead justify="center" className="w-[5%]">#</TableHead>
                 <TableHead className="w-[22%]">{dict.common.name}</TableHead>
-                <TableHead className="w-[8%] text-center">{t.age}</TableHead>
+                <TableHead justify="center" className="w-[8%]">{t.age}</TableHead>
                 <TableHead className="w-[17%]">{dict.common.phone}</TableHead>
                 <TableHead className="w-[22%]">{t.currentSubscription}</TableHead>
-                <TableHead className="w-[11%]">{dict.common.status}</TableHead>
-                <TableHead className="w-[15%] text-end">{dict.common.actions}</TableHead>
+                <TableHead justify="center" className="w-[11%]">{dict.common.status}</TableHead>
+                <TableHead justify="end" className="w-[15%]">{dict.common.actions}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.map((m, i) => (
                 <TableRow key={m.id}>
-                  <TableCell className="text-center text-xs font-semibold text-muted-foreground">
+                  <TableCell justify="center" className="text-xs font-semibold text-muted-foreground">
                     {paging.from + i}
                   </TableCell>
                   <TableCell className="truncate font-medium">{m.name}</TableCell>
-                  <TableCell className="text-center tabular-nums">{m.age ?? "—"}</TableCell>
+                  <TableCell justify="center" className="tabular-nums">{m.age ?? "—"}</TableCell>
                   <TableCell>
                     <span className="inline-flex items-center gap-1.5 text-muted-foreground" dir="ltr">
                       <Phone className="size-3.5" />
@@ -199,14 +199,14 @@ export function MembersTable({
                       <span className="text-muted-foreground">{t.none}</span>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell justify="center">
                     {m.current ? (
                       <StatusBadge status={m.current.status} dict={dict} />
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-end">
+                  <TableCell justify="end">
                     <Button variant="soft-brand" size="xs" onClick={() => open(m)}>
                       <Eye />
                       {t.details}

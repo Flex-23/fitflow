@@ -139,18 +139,18 @@ export function ExpensesManager({
           <Table className="min-w-[48rem] table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[5%] text-center">#</TableHead>
+                <TableHead justify="center" className="w-[5%]">#</TableHead>
                 <TableHead className="w-[30%]">{t.expenseTitle}</TableHead>
                 <TableHead className="w-[14%]">{t.expenseCategory}</TableHead>
                 <TableHead className="w-[17%]">{t.expenseAmount}</TableHead>
                 <TableHead className="w-[17%]">{t.expenseDate}</TableHead>
-                <TableHead className="w-[17%] text-end">{dict.common.actions}</TableHead>
+                <TableHead justify="end" className="w-[17%]">{dict.common.actions}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.map((e, i) => (
                 <TableRow key={e.id}>
-                  <TableCell className="text-center text-xs font-semibold text-muted-foreground">
+                  <TableCell justify="center" className="text-xs font-semibold text-muted-foreground">
                     {i + 1}
                   </TableCell>
                   <TableCell>
@@ -171,7 +171,7 @@ export function ExpensesManager({
                   <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                     {formatDate(e.spentAt, locale)}
                   </TableCell>
-                  <TableCell className="text-end">
+                  <TableCell justify="end">
                     <DeleteExpense id={e.id} dict={dict} />
                   </TableCell>
                 </TableRow>

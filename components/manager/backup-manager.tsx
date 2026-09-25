@@ -121,19 +121,19 @@ export function BackupManager({
           <Table className="min-w-[52rem] table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[5%] text-center">#</TableHead>
+                <TableHead justify="center" className="w-[5%]">#</TableHead>
                 <TableHead className="w-[22%]">{t.when}</TableHead>
                 <TableHead className="w-[25%]">{t.file}</TableHead>
                 <TableHead className="w-[10%]">{t.size}</TableHead>
-                <TableHead className="w-[9%] text-center">{t.members}</TableHead>
-                <TableHead className="w-[9%] text-center">{t.subscriptions}</TableHead>
-                <TableHead className="w-[20%] text-end">{dict.common.actions}</TableHead>
+                <TableHead justify="center" className="w-[9%]">{t.members}</TableHead>
+                <TableHead justify="center" className="w-[9%]">{t.subscriptions}</TableHead>
+                <TableHead justify="end" className="w-[20%]">{dict.common.actions}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {backups.map((b, i) => (
                 <TableRow key={b.name}>
-                  <TableCell className="text-center text-xs font-semibold text-muted-foreground">
+                  <TableCell justify="center" className="text-xs font-semibold text-muted-foreground">
                     {i + 1}
                   </TableCell>
                   <TableCell className="whitespace-nowrap font-medium">
@@ -150,7 +150,7 @@ export function BackupManager({
                       {formatSize(b.size, locale)}
                     </span>
                   </TableCell>
-                  <TableCell className="text-center">
+                  <TableCell justify="center">
                     {b.counts ? (
                       <span className="inline-flex items-center gap-1 text-sm">
                         <Users className="size-3.5 text-muted-foreground" />
@@ -160,7 +160,7 @@ export function BackupManager({
                       <span className="text-xs text-destructive">{t.corrupt}</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-center">
+                  <TableCell justify="center">
                     {b.counts ? (
                       <span className="inline-flex items-center gap-1 text-sm">
                         <BadgeCheck className="size-3.5 text-muted-foreground" />
@@ -170,7 +170,7 @@ export function BackupManager({
                       "—"
                     )}
                   </TableCell>
-                  <TableCell className="text-end">
+                  <TableCell justify="end">
                     <div className="flex items-center justify-end gap-1.5">
                       <Button asChild variant="soft" size="xs" title={t.download}>
                         <a href={`/api/backup/${encodeURIComponent(b.name)}`} download={b.name}>

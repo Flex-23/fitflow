@@ -107,12 +107,12 @@ export function DebtsManager({
           <Table className="min-w-[52rem] table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[5%] text-center">#</TableHead>
+                <TableHead justify="center" className="w-[5%]">#</TableHead>
                 <TableHead className="w-[22%]">{t.debtPerson}</TableHead>
                 <TableHead className="w-[15%]">{t.debtAmount}</TableHead>
                 <TableHead className="w-[20%]">{dict.reception.received}</TableHead>
                 <TableHead className="w-[14%]">{dict.reception.remaining}</TableHead>
-                <TableHead className="w-[24%] text-end">{dict.common.actions}</TableHead>
+                <TableHead justify="end" className="w-[24%]">{dict.common.actions}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -121,7 +121,7 @@ export function DebtsManager({
                 const settled = d.remaining <= 0;
                 return (
                   <TableRow key={d.id} className={settled ? "opacity-70" : ""}>
-                    <TableCell className="text-center text-xs font-semibold text-muted-foreground">
+                    <TableCell justify="center" className="text-xs font-semibold text-muted-foreground">
                       {paging.from + i}
                     </TableCell>
                     <TableCell>

@@ -67,12 +67,12 @@ export function ExpiredSubscriptions({
           <Table className="min-w-[48rem] table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[5%] text-center">#</TableHead>
+                <TableHead justify="center" className="w-[5%]">#</TableHead>
                 <TableHead className="w-[24%]">{t.member}</TableHead>
                 <TableHead className="w-[16%]">{t.selectPlan}</TableHead>
-                <TableHead className="w-[24%]">{t.period}</TableHead>
-                <TableHead className="w-[16%]">{t.expiredOn}</TableHead>
-                <TableHead className="w-[15%] text-end">{dict.common.actions}</TableHead>
+                <TableHead justify="center" className="w-[24%]">{t.period}</TableHead>
+                <TableHead justify="center" className="w-[16%]">{t.expiredOn}</TableHead>
+                <TableHead justify="end" className="w-[15%]">{dict.common.actions}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -80,7 +80,7 @@ export function ExpiredSubscriptions({
                 const ago = Math.abs(Math.min(0, daysUntil(r.endDate)));
                 return (
                   <TableRow key={r.subscriptionId}>
-                    <TableCell className="text-center text-xs font-semibold text-muted-foreground">
+                    <TableCell justify="center" className="text-xs font-semibold text-muted-foreground">
                       {paging.from + i}
                     </TableCell>
                     <TableCell>
@@ -91,15 +91,17 @@ export function ExpiredSubscriptions({
                       </div>
                     </TableCell>
                     <TableCell className="truncate font-medium">{r.planName}</TableCell>
-                    <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                      {formatDate(r.startDate, locale)} → {formatDate(r.endDate, locale)}
+                    <TableCell justify="center" className="whitespace-nowrap text-sm tabular-nums text-muted-foreground">
+                      <span dir="ltr">
+                        {formatDate(r.startDate, locale)} → {formatDate(r.endDate, locale)}
+                      </span>
                     </TableCell>
-                    <TableCell>
+                    <TableCell justify="center">
                       <Badge variant="destructive" className="px-2.5 py-1 text-xs font-semibold">
                         {t.daysAgo.replace("{n}", String(ago))}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-end">
+                    <TableCell justify="end">
                       <Button variant="soft-brand" size="xs" onClick={() => setSelected(r)}>
                         <RotateCw />
                         {t.renew}
