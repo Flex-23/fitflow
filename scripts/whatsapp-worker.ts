@@ -208,10 +208,15 @@ async function markSent(row: OutboxRow, attempts: number, sentAt: Date) {
   });
 }
 
-async function deliver(row: OutboxRow): Promise<void> {
+/**
+ * Send one row. Returns false when the link turned out to be down, which is
+ * the caller's cue to stop the batch and re-establish it rather than walk the
+ * rest of the queue reporting the same thing about each row in turn.
+ */
+async function deliver(row: OutboxRow): Promise<boolean> {
   const attempts = row.attempts + 1;
 
-  const fail = async (error: string) => {
+  const failed = async (error: string) => {
     const giveUp = attempts >= MAX_ATTEMPTS;
     await prisma.whatsAppOutbox.update({
       where: { id: row.id },
@@ -220,31 +225,29 @@ async function deliver(row: OutboxRow): Promise<void> {
     console.log(
       `[${stamp()}] ${giveUp ? "FAILED" : "retry"}  ${row.memberName} +${row.phone}  ${error}`
     );
+    return true;
   };
 
   // A sign-in link: plain text, already written by the app, nothing to fetch.
   if (row.kind === "portal") {
-    if (!row.text) return fail("portal message has no body");
+    if (!row.text) return failed("portal message has no body");
 
     const res = await wa.sendText({ to: row.phone, body: row.text });
     if (!res.sent) {
-      if (res.reason === "not_connected") {
-        console.log(`[${stamp()}] socket down, leaving ${row.memberName} queued`);
-        return;
-      }
-      return fail(res.detail ? `${res.reason}: ${res.detail}` : res.reason);
+      if (res.reason === "not_connected") return false;
+      return failed(res.detail ? `${res.reason}: ${res.detail}` : res.reason);
     }
 
     await markSent(row, attempts, new Date());
     console.log(`[${stamp()}] SENT   ${row.memberName} +${row.phone}  (app link)`);
-    return;
+    return true;
   }
 
   const kind = (row.kind === "nutrition" ? "nutrition" : "training") as CourseKind;
-  if (!row.shareToken || !row.courseId) return fail("course row is missing its share link");
+  if (!row.shareToken || !row.courseId) return failed("course row is missing its share link");
 
   const pdf = await fetchCoursePdf(row.shareToken);
-  if (!pdf) return fail("could not download the course PDF");
+  if (!pdf) return failed("could not download the course PDF");
 
   const caption = buildCourseMessage(row.memberName, kind, `${APP_URL}/p/${row.shareToken}`);
   const res = await wa.sendDocument({
@@ -256,11 +259,8 @@ async function deliver(row: OutboxRow): Promise<void> {
 
   if (!res.sent) {
     // An unreachable socket is not the row's fault — do not spend an attempt.
-    if (res.reason === "not_connected") {
-      console.log(`[${stamp()}] socket down, leaving ${row.memberName} queued`);
-      return;
-    }
-    return fail(res.detail ? `${res.reason}: ${res.detail}` : res.reason);
+    if (res.reason === "not_connected") return false;
+    return failed(res.detail ? `${res.reason}: ${res.detail}` : res.reason);
   }
 
   const sentAt = new Date();
@@ -280,6 +280,7 @@ async function deliver(row: OutboxRow): Promise<void> {
     }
   });
   console.log(`[${stamp()}] SENT   ${row.memberName} +${row.phone}  (${pdf.length} bytes)`);
+  return true;
 }
 
 async function main() {
@@ -364,10 +365,18 @@ async function main() {
     }
 
     for (const row of queued) {
+      let linkUp = true;
       try {
-        await deliver(row);
+        linkUp = await deliver(row);
       } catch (e) {
         console.error(`[${stamp()}] unexpected error on ${row.id}:`, e);
+      }
+      if (!linkUp) {
+        // The link went down under us. Stop the batch and let the top of the
+        // loop rebuild it; walking the rest would only repeat this once per
+        // row, which is how a dead socket used to fill the log.
+        console.log(`[${stamp()}] socket down — ${queued.length} message(s) still queued`);
+        break;
       }
       // WhatsApp bans numbers that burst; keep a human pace between messages.
       await sleep(1500);

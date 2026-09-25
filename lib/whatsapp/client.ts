@@ -37,6 +37,17 @@ type ClientState = {
   starting: Promise<void> | null;
   /** Set while a close is deliberate, so it is not undone by a reconnect. */
   stopped: boolean;
+  /**
+   * Bumped for every socket we open, and whenever we abandon one.
+   *
+   * Baileys keeps delivering events from a socket after it has been replaced,
+   * and those events used to be applied to the live connection: an old
+   * socket's "close" would clear `sock` while `status` still said connected
+   * from the new one. Nothing could send after that, and nothing reconnected,
+   * because by every status check the link was fine. A socket now ignores its
+   * own events once it is no longer the current generation.
+   */
+  generation: number;
 };
 
 // Survives hot reloads in dev, exactly like the Prisma client.
@@ -52,7 +63,19 @@ const state: ClientState =
     lastError: null,
     starting: null,
     stopped: false,
+    generation: 0,
   });
+
+/**
+ * Ready to send: a socket we still own, on an open connection.
+ *
+ * Both halves, always together. Asking only about `status` is what let the
+ * worker sit in a loop reporting "socket down" on every message while
+ * believing it was connected.
+ */
+function ready(): boolean {
+  return state.sock !== null && state.status === "connected";
+}
 
 function authDir(): string {
   return process.env.WHATSAPP_AUTH_DIR || "./storage/whatsapp-auth";
@@ -119,10 +142,18 @@ export function onQrCode(listener: (qr: string) => void) {
  * under way — callers poll `getStatus()` for the QR or the connected state.
  */
 export async function connect(): Promise<void> {
-  if (state.status === "connected" || state.status === "qr") return;
+  // `ready()`, not the status word: a state that claims to be connected with
+  // no socket behind it must be allowed to reconnect, or it stays that way
+  // for the life of the process.
+  if (ready() || state.status === "qr") return;
   if (state.starting) return state.starting;
 
   state.starting = (async () => {
+    // Everything opened before this moment is now history, whatever it still
+    // has to say for itself.
+    const generation = ++state.generation;
+    const isCurrent = () => state.generation === generation;
+
     try {
       state.status = "connecting";
       state.lastError = null;
@@ -149,6 +180,10 @@ export async function connect(): Promise<void> {
       sock.ev.on("creds.update", saveCreds);
 
       sock.ev.on("connection.update", (u) => {
+        // A socket we have already replaced or abandoned; its news is stale
+        // and applying it would corrupt the live connection's state.
+        if (!isCurrent()) return;
+
         if (u.qr) {
           state.qr = u.qr;
           state.status = "qr";
@@ -207,17 +242,17 @@ export async function ensureConnected(waitMs = 20_000): Promise<boolean> {
   // Read through a function: the socket callbacks change `state` while we
   // wait, which TypeScript's narrowing of `state.status` cannot see.
   const status = (): WhatsAppStatus => state.status;
-  if (status() === "connected") return true;
+  if (ready()) return true;
   if (status() === "disconnected" && !(await hasCredentials())) return false;
   void connect();
   const deadline = Date.now() + waitMs;
   while (Date.now() < deadline) {
-    if (status() === "connected") return true;
+    if (ready()) return true;
     // Pairing needs a person with the phone; do not hold the caller for that.
     if (status() === "qr") return false;
     await new Promise((r) => setTimeout(r, 250));
   }
-  return status() === "connected";
+  return ready();
 }
 
 /**
@@ -232,6 +267,9 @@ export async function ensureConnected(waitMs = 20_000): Promise<boolean> {
  */
 export async function stopPairing(): Promise<void> {
   if (state.status !== "qr") return;
+  // Retire this socket: whatever it says from here on is not about the
+  // connection we will open next.
+  state.generation++;
   state.stopped = true;
   try {
     state.sock?.end(undefined);
@@ -253,6 +291,9 @@ export async function stopPairing(): Promise<void> {
  * and never when the number is properly linked.
  */
 export async function resetPairing(): Promise<void> {
+  // Retire this socket: whatever it says from here on is not about the
+  // connection we will open next.
+  state.generation++;
   state.stopped = true;
   try {
     state.sock?.end(undefined);
@@ -268,6 +309,9 @@ export async function resetPairing(): Promise<void> {
 
 /** Unlink this device and forget the stored credentials. */
 export async function disconnect() {
+  // Retire this socket: whatever it says from here on is not about the
+  // connection we will open next.
+  state.generation++;
   try {
     await state.sock?.logout();
   } catch {
@@ -287,8 +331,8 @@ export type SendResult =
 
 /** Send a plain text message to an international number. */
 export async function sendText(opts: { to: string; body: string }): Promise<SendResult> {
-  const sock = state.sock;
-  if (!sock || state.status !== "connected") return { sent: false, reason: "not_connected" };
+  if (!ready()) return { sent: false, reason: "not_connected" };
+  const sock = state.sock!;
 
   try {
     const [check] = (await sock.onWhatsApp(opts.to)) ?? [];
@@ -312,8 +356,8 @@ export async function sendDocument(opts: {
   mimetype?: string;
   caption?: string;
 }): Promise<SendResult> {
-  const sock = state.sock;
-  if (!sock || state.status !== "connected") return { sent: false, reason: "not_connected" };
+  if (!ready()) return { sent: false, reason: "not_connected" };
+  const sock = state.sock!;
 
   try {
     const [check] = (await sock.onWhatsApp(opts.to)) ?? [];
