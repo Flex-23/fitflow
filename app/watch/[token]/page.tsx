@@ -8,15 +8,20 @@ import { parseVideoLink } from "@/lib/video-link";
 import { Brand } from "@/components/brand";
 import { WatchGate } from "@/components/watch/watch-gate";
 import { WatchPlayer } from "@/components/watch/watch-player";
+import { BackToCourse } from "@/components/watch/back-to-course";
 
 export const metadata: Metadata = { title: "Watch" };
 
 export default async function WatchPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ token: string }>;
+  /** "c" is the course this exercise was opened from. */
+  searchParams: Promise<{ c?: string }>;
 }) {
   const { token } = await params;
+  const { c } = await searchParams;
   const locale = await getLocale();
   const dict = await getDictionary(locale);
 
@@ -27,6 +32,20 @@ export default async function WatchPage({
     }),
     getMemberSession(),
   ]);
+
+  // Where "back" goes. The course token comes from the link in the PDF, so
+  // it is checked against a real course before it becomes a button — a
+  // member should never be offered a way back to a page that 404s. Shape
+  // first, so a malformed value never reaches the database or an href.
+  const courseToken = c && /^[A-Za-z0-9_-]{1,64}$/.test(c) ? c : null;
+  const backToCourse = courseToken
+    ? ((await prisma.trainingCourse.findFirst({
+        where: { shareToken: courseToken },
+        select: { id: true },
+      }))
+        ? `/p/${courseToken}`
+        : null)
+    : null;
 
   // An open session still has to belong to a member whose subscription is
   // running right now — re-checked on every page view, not on every byte.
@@ -57,8 +76,6 @@ export default async function WatchPage({
             </div>
             <p className="font-semibold">{dict.watch.notFound}</p>
             <p className="text-sm text-muted-foreground">{dict.watch.notFoundDesc}</p>
-            {/* No way back: a member arrives here from a link in their course
-                PDF and has no page of their own to return to. */}
           </div>
         ) : watcher ? (
           <WatchPlayer
@@ -74,6 +91,11 @@ export default async function WatchPage({
         ) : (
           <WatchGate token={token} exerciseName={video.exerciseName} dict={dict} />
         )}
+
+        {/* The way back to the rest of the programme. Shown whether the video
+            played or not: a member who lands on a missing one still wants
+            their course, not the end of the road. */}
+        <BackToCourse href={backToCourse} signedIn={!!watcher} dict={dict} />
       </div>
     </div>
   );

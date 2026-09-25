@@ -26,10 +26,9 @@ export const metadata: Metadata = {
     // iOS has no manifest: the bar is told to match the app's own dark chrome.
     statusBarStyle: "black-translucent",
   },
-  icons: {
-    icon: "/favicon.ico",
-    apple: "/icons/apple-touch-icon.png",
-  },
+  // app/icon.png and app/apple-icon.png are picked up by convention; the
+  // member app overrides nothing, and the staff layout points Apple at its
+  // own green mark.
 };
 
 export const viewport: Viewport = {

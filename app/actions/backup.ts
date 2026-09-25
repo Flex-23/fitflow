@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireSection } from "@/lib/auth/dal";
+import { requireMaster, requireSection } from "@/lib/auth/dal";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/auth/password";
 import { logActivity } from "@/lib/activity";
@@ -46,15 +46,21 @@ export async function removeBackup(name: string): Promise<ActionState> {
 }
 
 /**
- * Overwrite the live database with a snapshot. Destructive, so beyond the
- * manager role it demands the manager's own password again — a stolen
- * session alone cannot wipe the gym.
+ * Overwrite the live database with a snapshot.
+ *
+ * The master's alone. A manager takes snapshots — that is a safety habit and
+ * costs nothing — but putting one back replaces every member, payment and
+ * course with an older version of itself, and undoing a whole day of the
+ * gym's work is an owner's decision.
+ *
+ * The password is still asked for on top of that, so a screen left open is
+ * not enough to wipe the gym.
  */
 export async function restoreFromBackup(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const user = await requireSection("MANAGEMENT");
+  const user = await requireMaster();
   const name = String(formData.get("name") ?? "");
   const password = String(formData.get("password") ?? "");
 

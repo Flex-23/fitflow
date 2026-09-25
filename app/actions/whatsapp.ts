@@ -15,6 +15,7 @@ import {
   WA_QR_KEY,
   WA_QR_AT_KEY,
   WA_PAIR_UNTIL_KEY,
+  WA_UNLINK_KEY,
   WORKER_STALE_MS,
   QR_STALE_MS,
   PAIR_WINDOW_MS,
@@ -187,6 +188,24 @@ export async function sendCourseToMember(
   revalidatePath("/training");
   revalidatePath("/nutrition");
   return { ok: true, phone };
+}
+
+/**
+ * Change the gym's number: log the current one out and start over.
+ *
+ * The site cannot reach WhatsApp itself, so this only records the request;
+ * the worker on the gym computer performs the logout within a poll and
+ * clears the stored number. The page then shows the pairing button again.
+ */
+export async function unlinkWhatsAppNumber(): Promise<{ ok: boolean }> {
+  await requireSection("MANAGEMENT");
+  const at = new Date().toISOString();
+  await prisma.setting.upsert({
+    where: { key: WA_UNLINK_KEY },
+    update: { value: at },
+    create: { key: WA_UNLINK_KEY, value: at },
+  });
+  return { ok: true };
 }
 
 /** Drop a failed delivery, or queue it again. Manager only. */

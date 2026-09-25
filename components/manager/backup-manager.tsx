@@ -50,10 +50,17 @@ export function BackupManager({
   backups,
   dict,
   locale,
+  canRestore,
 }: {
   backups: BackupInfo[];
   dict: Dictionary;
   locale: Locale;
+  /**
+   * Whether this person may put a snapshot back. Managers take them; only
+   * the master restores one, so for everyone else the button is not there
+   * to be pressed by mistake.
+   */
+  canRestore: boolean;
 }) {
   const t = dict.backup;
   const router = useRouter();
@@ -95,7 +102,6 @@ export function BackupManager({
             <ShieldAlert className="size-4 text-warning" />
             {dict.videos.title}
           </h3>
-          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{t.notSaved}</p>
         </Card>
       </div>
 
@@ -172,15 +178,17 @@ export function BackupManager({
                           {t.download}
                         </a>
                       </Button>
-                      <Button
-                        variant="soft-warning"
-                        size="xs"
-                        disabled={!b.counts}
-                        onClick={() => setRestoring(b)}
-                      >
-                        <RotateCcw />
-                        {t.restore}
-                      </Button>
+                      {canRestore && (
+                        <Button
+                          variant="soft-warning"
+                          size="xs"
+                          disabled={!b.counts}
+                          onClick={() => setRestoring(b)}
+                        >
+                          <RotateCcw />
+                          {t.restore}
+                        </Button>
+                      )}
                       <DeleteBackup name={b.name} dict={dict} />
                     </div>
                   </TableCell>

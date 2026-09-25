@@ -16,6 +16,7 @@ import {
 import {
   getWhatsAppStatus,
   startPairing,
+  unlinkWhatsAppNumber,
   retryFailedSends,
   clearFailedSends,
   type WaStatus,
@@ -129,10 +130,13 @@ export function WhatsAppLink({
             </span>
           )}
         </div>
-        <Button variant="outline" size="sm" onClick={refresh} disabled={pending}>
-          <RefreshCw className={pending ? "size-4 animate-spin" : "size-4"} />
-          {dict.common.search}
-        </Button>
+        <div className="flex items-center gap-2">
+          {state.number && <ChangeNumber dict={dict} onDone={refresh} />}
+          <Button variant="outline" size="sm" onClick={refresh} disabled={pending}>
+            <RefreshCw className={pending ? "size-4 animate-spin" : "size-4"} />
+            {dict.common.search}
+          </Button>
+        </div>
       </div>
 
       {/* Pairing: the code is scanned from here, not from the gym computer's
@@ -234,6 +238,54 @@ export function WhatsAppLink({
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * Swap the gym's number for another one.
+ *
+ * Confirmed first, because it logs the current phone out: anything still
+ * queued waits until a new number is paired. The work happens on the gym
+ * computer a moment later, so the page reports that it was asked for rather
+ * than that it is done.
+ */
+function ChangeNumber({ dict, onDone }: { dict: Dictionary; onDone: () => void }) {
+  const t = dict.manager;
+  const [confirming, setConfirming] = useState(false);
+  const [pending, start] = useTransition();
+
+  if (!confirming) {
+    return (
+      <Button variant="ghost" size="sm" onClick={() => setConfirming(true)}>
+        <RefreshCw className="size-4" />
+        {t.whatsappChangeNumber}
+      </Button>
+    );
+  }
+
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className="text-xs text-destructive">{t.whatsappChangeConfirm}</span>
+      <Button
+        variant="destructive"
+        size="sm"
+        disabled={pending}
+        onClick={() =>
+          start(async () => {
+            const res = await unlinkWhatsAppNumber();
+            if (res.ok) toast.success(t.whatsappChangeAsked);
+            else toast.error(dict.common.somethingWrong);
+            setConfirming(false);
+            onDone();
+          })
+        }
+      >
+        {dict.common.yes}
+      </Button>
+      <Button variant="ghost" size="sm" disabled={pending} onClick={() => setConfirming(false)}>
+        {dict.common.no}
+      </Button>
+    </span>
   );
 }
 

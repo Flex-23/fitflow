@@ -9,7 +9,7 @@ import { BackupManager } from "@/components/manager/backup-manager";
 export const metadata: Metadata = { title: "Backup" };
 
 export default async function BackupPage() {
-  await requireSection("MANAGEMENT");
+  const me = await requireSection("MANAGEMENT");
   const locale = await getLocale();
   const dict = await getDictionary(locale);
   const backups = await listBackups();
@@ -17,7 +17,12 @@ export default async function BackupPage() {
   return (
     <div>
       <PageHeader title={dict.backup.title} description={dict.backup.subtitle} />
-      <BackupManager backups={backups} dict={dict} locale={locale} />
+      <BackupManager
+        backups={backups}
+        dict={dict}
+        locale={locale}
+        canRestore={me.role === "MASTER"}
+      />
     </div>
   );
 }

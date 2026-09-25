@@ -26,6 +26,7 @@ import {
   WA_QR_KEY,
   WA_QR_AT_KEY,
   WA_PAIR_UNTIL_KEY,
+  WA_UNLINK_KEY,
 } from "../lib/whatsapp/worker-state";
 
 const POLL_MS = Math.max(1000, Number(process.env.WHATSAPP_POLL_MS || 5000));
@@ -76,6 +77,29 @@ async function getSetting(key: string): Promise<string> {
 let pairingUntil = 0;
 /** The window we have already cleared the decks for, so it happens once. */
 let preparedWindow = 0;
+
+/**
+ * Carry out an unlink asked for from the website.
+ *
+ * Logs the current number out and forgets it, which is what changing the
+ * gym's number means: the old phone stops being a linked device, and the
+ * next pairing starts from nothing.
+ */
+async function handleUnlinkRequest(): Promise<boolean> {
+  if (!(await getSetting(WA_UNLINK_KEY))) return false;
+
+  console.log(`[${stamp()}] unlink requested — logging the number out`);
+  await wa.disconnect();
+  await setSetting(WA_NUMBER_KEY, "");
+  await setSetting(WA_LINKED_AT_KEY, "");
+  await clearQr();
+  await setSetting(WA_PAIR_UNTIL_KEY, "");
+  await setSetting(WA_UNLINK_KEY, "");
+  pairingUntil = 0;
+  preparedWindow = 0;
+  console.log(`[${stamp()}] number unlinked — waiting for a new pairing request`);
+  return true;
+}
 async function readPairingWindow(): Promise<boolean> {
   const raw = await getSetting(WA_PAIR_UNTIL_KEY);
   const until = raw ? Date.parse(raw) : NaN;
@@ -322,6 +346,13 @@ async function main() {
     if (now - lastBeat > HEARTBEAT_MS) {
       lastBeat = now;
       await setSetting(WA_HEARTBEAT_KEY, new Date().toISOString());
+    }
+
+    // A request to change the number comes first: there is no sense pairing
+    // or sending on a link that is about to be thrown away.
+    if (await handleUnlinkRequest()) {
+      await sleep(POLL_MS);
+      continue;
     }
 
     // Follow the pairing window the website opens: a socket while it is

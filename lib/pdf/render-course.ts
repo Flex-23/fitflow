@@ -46,6 +46,7 @@ export async function renderTrainingPdf(
   return buildTrainingPdf({
     rtl: locale === "ar",
     baseUrl,
+    courseToken: course.shareToken,
     labels: {
       programTitle: dict.captain.trainingTitle,
       reps: dict.captain.reps,

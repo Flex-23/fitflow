@@ -244,6 +244,12 @@ export function sectionBar(b: Builder, label: string) {
 export type TrainingPdfData = {
   rtl: boolean;
   baseUrl: string;
+  /**
+   * This course's share token, carried on every exercise link so the video
+   * page knows which course the member came from and can offer the way back.
+   * Null for a template, which nobody is reading exercises out of.
+   */
+  courseToken?: string | null;
   labels: {
     programTitle: string;
     reps: string;
@@ -362,7 +368,11 @@ function exerciseRow(
   indent: number
 ) {
   b.ensure(20);
-  const link = ex.videoToken ? `${data.baseUrl}/watch/${ex.videoToken}` : null;
+  // The course token rides along so the video page can offer a way back to
+  // the rest of the programme; without it a member watching one exercise has
+  // nowhere to go but the browser's history.
+  const back = data.courseToken ? `?c=${data.courseToken}` : "";
+  const link = ex.videoToken ? `${data.baseUrl}/watch/${ex.videoToken}${back}` : null;
   b.text(`• ${ex.name}`, {
     size: 11,
     indent,

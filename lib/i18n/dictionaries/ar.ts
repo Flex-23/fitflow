@@ -271,6 +271,9 @@ const ar: Dictionary = {
   },
   manager: {
     forbidden: "لا تملك صلاحية هذا الإجراء.",
+    whatsappChangeNumber: "تغيير الرقم",
+    whatsappChangeConfirm: "إخراج الرقم الحالي؟",
+    whatsappChangeAsked: "تم الطلب. سيخرجه كمبيوتر الصالة بعد قليل — ثم أنشئ رمزاً جديداً.",
     whatsappScanCreate: "إنشاء رمز QR",
     whatsappScanAgain: "إنشاء رمز جديد",
     whatsappScanExpires: "ينتهي هذا الرمز خلال {n} ثانية.",
@@ -561,8 +564,6 @@ const ar: Dictionary = {
     whatIsSaved: "ماذا تحتوي النسخة",
     savedItems:
       "الأعضاء، الاشتراكات، المدفوعات، التجميدات، الديون، الصرفيات، الخطط، الكورسات، حسابات الموظفين، الإعدادات وسجل الحركات — كل ما في قاعدة البيانات.",
-    notSaved:
-      "ملفات الفيديو وملفات PDF للكورسات ليست داخل النسخة؛ هي في مجلد storage بجانبها. انسخ ذلك المجلد أيضاً عند الانتقال إلى سيرفر جديد.",
     list: "النسخ المحفوظة",
     noBackups: "لا توجد نسخ بعد.",
     file: "الملف",
@@ -845,6 +846,8 @@ const ar: Dictionary = {
     footerNote: "اضغط على أي تمرين داخل الكورس لمشاهدة الفيديو.",
   },
   watch: {
+    backToCourse: "العودة إلى الكورس",
+    backToMyPage: "العودة إلى صفحتي",
     title: "فيديو التمرين",
     enterPhone: "أدخل رقم هاتفك للمشاهدة",
     phone: "رقم الهاتف",

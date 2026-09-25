@@ -271,6 +271,10 @@ const en = {
   },
   manager: {
     forbidden: "You are not allowed to do that.",
+    whatsappChangeNumber: "Change number",
+    whatsappChangeConfirm: "Log the current number out?",
+    whatsappChangeAsked:
+      "Asked. The gym computer will log it out shortly — then create a new code.",
     whatsappScanCreate: "Create a QR code",
     whatsappScanAgain: "Create a new code",
     whatsappScanExpires: "This code stops working in {n}s.",
@@ -561,8 +565,6 @@ const en = {
     whatIsSaved: "What a snapshot holds",
     savedItems:
       "Members, subscriptions, payments, freezes, debts, expenses, plans, courses, staff accounts, settings and the activity log — everything in the database.",
-    notSaved:
-      "Video files and course PDFs are not inside the snapshot; they are in the storage folder next to it. Copy that folder too when you move to a new server.",
     list: "Saved snapshots",
     noBackups: "No snapshots yet.",
     file: "File",
@@ -849,6 +851,8 @@ const en = {
     footerNote: "Tap an exercise inside a course to watch its video.",
   },
   watch: {
+    backToCourse: "Back to my course",
+    backToMyPage: "Back to my page",
     title: "Exercise video",
     enterPhone: "Enter your phone number to watch",
     phone: "Phone number",

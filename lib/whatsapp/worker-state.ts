@@ -32,6 +32,17 @@ export const WA_QR_AT_KEY = "whatsapp.qrAt";
  */
 export const WA_PAIR_UNTIL_KEY = "whatsapp.pairUntil";
 
+/**
+ * A request from the website to unlink the current number (ISO timestamp),
+ * or empty when there is none.
+ *
+ * Changing the gym's number means logging the old one out, and only the
+ * worker holds the socket that can do it — the site runs somewhere else
+ * entirely. So the site asks here and the worker obeys, exactly as it does
+ * for a pairing code.
+ */
+export const WA_UNLINK_KEY = "whatsapp.unlinkRequestedAt";
+
 /** How long a requested pairing window stays open. */
 export const PAIR_WINDOW_MS = 60_000;
 

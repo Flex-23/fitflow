@@ -42,13 +42,10 @@ export type ExpenseRow = {
   createdByName: string | null;
 };
 
-/** "September 2026" in the active locale. */
-function formatMonthLabel(month: string, locale: Locale): string {
+/** "2026/9", matching the numeric dates the rest of the app prints. */
+function formatMonthLabel(month: string): string {
   const [y, m] = month.split("-").map(Number);
-  return new Intl.DateTimeFormat(locale === "ar" ? "ar-IQ-u-nu-latn" : "en-US", {
-    month: "long",
-    year: "numeric",
-  }).format(new Date(y, (m ?? 1) - 1, 1));
+  return `${y}/${m ?? 1}`;
 }
 
 const categoryTone: Record<ExpenseCategoryKey, "secondary" | "warning" | "muted" | "brand"> = {
@@ -105,7 +102,7 @@ export function ExpensesManager({
           icon={Wallet}
           label={t.totalExpenses}
           value={money(monthTotal)}
-          hint={formatMonthLabel(month, locale)}
+          hint={formatMonthLabel(month)}
           tone="destructive"
         />
         <StatTile icon={Receipt} label={t.movements} value={String(rows.length)} tone="brand" />

@@ -45,6 +45,13 @@ import { cn } from "@/lib/utils";
  */
 const DAY_COUNT = 4;
 const ROWS_PER_DAY = 12;
+/**
+ * Six characters of reps, matching the schema.
+ *
+ * Enforced on the way in as well as by maxLength, because a paste is not
+ * typing and the browser will happily drop a long one straight in.
+ */
+const REPS_MAX = 6;
 
 export type VideoOption = { id: string; exerciseName: string; hiddenToken: string };
 
@@ -601,8 +608,9 @@ const SlotField = memo(function SlotField({
 
       <Input
         value={slot.reps}
-        onChange={(e) => onPatch(di, ri, side, { reps: e.target.value })}
+        onChange={(e) => onPatch(di, ri, side, { reps: e.target.value.slice(0, REPS_MAX) })}
         placeholder={t.reps}
+        maxLength={REPS_MAX}
         dir="ltr"
         className={cn("h-9 w-20 shrink-0 text-center", isPair && "border-dashed")}
       />
