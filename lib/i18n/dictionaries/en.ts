@@ -394,7 +394,6 @@ const en = {
     whatsappTitle: "WhatsApp integration",
     whatsappDesc:
       "Saving a course opens WhatsApp on this computer at the member's chat with a ready message containing the file link — just press send. (WhatsApp cannot attach a file through a link, so the course travels as a private link.)",
-    whatsappCountryCode: "Country code",
     whatsappLinkedNumber: "Linked gym number",
     whatsappLinkedOn: "Linked on",
     publicUrl: "App URL",

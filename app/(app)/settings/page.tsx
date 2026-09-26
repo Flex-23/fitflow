@@ -4,7 +4,7 @@ import { requireSection } from "@/lib/auth/dal";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
 import { getExpiringSoonThreshold, getSetting } from "@/lib/settings";
-import { isWhatsAppEnabled, countryCode } from "@/lib/whatsapp";
+import { isWhatsAppEnabled } from "@/lib/whatsapp";
 import { WA_NUMBER_KEY, WA_LINKED_AT_KEY } from "@/lib/whatsapp/worker-state";
 import { formatDate } from "@/lib/i18n/format";
 import { appUrl as resolveAppUrl, isLocalUrl } from "@/lib/app-url";
@@ -83,7 +83,7 @@ export default async function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground">{t.whatsappDesc}</p>
-            <div className="grid gap-2 text-sm sm:grid-cols-3">
+            <div className="grid gap-2 text-sm sm:grid-cols-2">
               <div className="rounded-lg bg-muted/50 px-3 py-2">
                 <p className="text-xs text-muted-foreground">{t.whatsappLinkedNumber}</p>
                 <p className="font-semibold" dir="ltr">
@@ -94,12 +94,6 @@ export default async function SettingsPage() {
                     {t.whatsappLinkedOn} {formatDate(linkedAt, locale)}
                   </p>
                 )}
-              </div>
-              <div className="rounded-lg bg-muted/50 px-3 py-2">
-                <p className="text-xs text-muted-foreground">{t.whatsappCountryCode}</p>
-                <p className="font-semibold" dir="ltr">
-                  +{countryCode()}
-                </p>
               </div>
               <div className="rounded-lg bg-muted/50 px-3 py-2">
                 <p className="text-xs text-muted-foreground">{t.publicUrl}</p>
