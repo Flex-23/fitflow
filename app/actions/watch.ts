@@ -1,5 +1,7 @@
 "use server";
 
+import { redirect } from "next/navigation";
+
 import { prisma } from "@/lib/prisma";
 import { createMemberSession, clearMemberSession } from "@/lib/member-session";
 import { normalizePhone } from "@/lib/whatsapp";
@@ -88,4 +90,17 @@ async function findActiveMemberByPhone(
     if (active > 0) return { id: c.id, name: c.name };
   }
   return null;
+}
+
+/**
+ * Leave the member session on this device.
+ *
+ * A phone that is lent out, or a browser an owner once opened a member's
+ * link in, otherwise keeps that member signed in for a month with nothing
+ * on screen to end it. The link itself is single-use, so signing out means
+ * asking the gym for another one — which is the point.
+ */
+export async function signOutMember() {
+  await clearMemberSession();
+  redirect("/login");
 }

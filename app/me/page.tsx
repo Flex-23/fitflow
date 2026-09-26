@@ -5,6 +5,7 @@ import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
 import { formatDate } from "@/lib/i18n/format";
 import { getMemberSession } from "@/lib/member-session";
+import { signOutMember } from "@/app/actions/watch";
 import { getMemberPortal } from "@/lib/member-portal";
 import { Brand } from "@/components/brand";
 import { BrandWatermark } from "@/components/brand-watermark";
@@ -194,6 +195,18 @@ export default async function MemberPage({
         <InstallAppButton dict={dict} />
 
         <p className="text-center text-xs text-muted-foreground">{t.footerNote}</p>
+
+        {/* A way out. Without it a phone that was lent to someone, or a
+            browser the gym once opened a link in, stays signed in as this
+            member for a month with nothing on screen to end it. */}
+        <form action={signOutMember}>
+          <button
+            type="submit"
+            className="mx-auto block text-xs font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground"
+          >
+            {t.signOut}
+          </button>
+        </form>
       </div>
     </div>
   );

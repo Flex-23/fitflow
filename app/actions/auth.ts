@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { verifyPassword, DUMMY_HASH } from "@/lib/auth/password";
 import { createSession, deleteSession } from "@/lib/auth/session";
 import { roleHome } from "@/lib/auth/rbac";
+import { isStaffPath } from "@/lib/auth/routes";
 import { isMasterGate } from "@/lib/auth/master-gate";
 import {
   clientKey,
@@ -24,11 +25,17 @@ export type LoginState = {
   attemptsLeft?: number;
 };
 
-/** Only same-origin, non-protocol-relative paths may be used as a landing page. */
+/**
+ * Where to land after signing in, when the form carries a destination.
+ *
+ * Same-origin and not protocol-relative, as always — and now also a page
+ * that exists. A crafted or mistyped "next" used to be honoured, so a
+ * correct sign-in could end on a 404.
+ */
 function safeNext(value: FormDataEntryValue | null): string | null {
   const next = typeof value === "string" ? value : "";
   if (!next.startsWith("/") || next.startsWith("//")) return null;
-  return next;
+  return isStaffPath(next.split("?")[0]!) ? next : null;
 }
 
 export async function login(

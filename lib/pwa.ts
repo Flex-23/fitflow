@@ -4,12 +4,15 @@ import { appUrl } from "@/lib/app-url";
 /**
  * FitFlow installs as two apps, not one.
  *
- * A member's icon opens their own page; the manager's opens the day's
- * summary. They share an origin, so the browser tells them apart by `id` —
- * without it, installing one would replace the other. They look different
- * too: the member's is the mark on the app's near-black, the manager's the
- * same mark framed in brand green, which is what a person actually reads on
- * a crowded home screen.
+ * A member's icon opens their own page; the staff one opens their work.
+ * Neither goes through "/", so that address can be the sign-in form and
+ * nothing else.
+ *
+ * They share an origin, so the browser tells them apart by `id` — without
+ * it, installing one would replace the other. They look different too: the
+ * member's is the mark on the app's near-black, the staff one the same mark
+ * framed in brand green, which is what a person actually reads on a crowded
+ * home screen.
  */
 
 export const MEMBER_MANIFEST = "/manifest.webmanifest";
@@ -32,7 +35,10 @@ export function memberManifest(): MetadataRoute.Manifest {
     name: "FitFlow",
     short_name: "FitFlow",
     description: "Your membership, your subscription and your courses.",
-    start_url: "/",
+    // The member's page, not "/". One address cannot be both the staff
+    // sign-in and a member's profile, and the member's app should open on
+    // the thing it was installed from.
+    start_url: "/me",
     scope: "/",
     display: "standalone",
     orientation: "portrait",

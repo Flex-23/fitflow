@@ -843,6 +843,7 @@ const en = {
     wrongPassword: "That is not the current password.",
   },
   portal: {
+    signOut: "Sign out of this device",
     linkExpired: "This link has expired",
     linkExpiredBody:
       "A link works once, and only for ten minutes. Ask the gym to send you a new one.",

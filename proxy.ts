@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { decryptSession, SESSION_COOKIE } from "@/lib/auth/session-crypto";
 import { roleHome } from "@/lib/auth/rbac";
+import { isStaffPath, startsWithSegment } from "@/lib/auth/routes";
 
 // Next.js 16 renamed Middleware to Proxy. This runs optimistic auth checks
 // (cookie only, no DB) — the secure checks live in the Data Access Layer.
-// Everything is protected except the public surfaces below.
+//
 // "/p" serves course PDFs through a private share token (sent over WhatsApp),
 // and "/me" is the member's own page, which carries a member session rather
 // than a staff one. "/offline" is the page the service worker keeps a copy of,
@@ -18,13 +19,19 @@ export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   const isPublic =
-    pathname === "/" ||
-    PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+    pathname === "/" || PUBLIC_PREFIXES.some((p) => startsWithSegment(pathname, p));
 
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   const session = await decryptSession(token);
 
-  if (!isPublic && !session) {
+  // Only a real staff page is worth sending to the sign-in form. Anything
+  // else is not a page, and bouncing a typo through sign-in and back to
+  // itself means signing in successfully and landing on a 404.
+  //
+  // Forgetting to add a new page to that list is safe: it falls through to
+  // the page, which calls requireSection and redirects the same way. The
+  // proxy saves a round trip; it is not what protects anything.
+  if (!isPublic && !session && isStaffPath(pathname)) {
     const url = new URL("/login", req.nextUrl);
     url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
