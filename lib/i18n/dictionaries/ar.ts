@@ -85,6 +85,7 @@ const ar: Dictionary = {
   },
   nav: {
     master: "الماستر",
+    ratings: "تقييمات الفيديوهات",
     staffSection: "الموظفون",
     summary: "الملخص",
     reception: "الرسبشن",
@@ -855,6 +856,17 @@ const ar: Dictionary = {
     newPasswordHint: "اتركها فارغة للإبقاء عليها",
     credentialsSaved: "تم الحفظ",
     wrongPassword: "كلمة المرور الحالية غير صحيحة.",
+  },
+  ratings: {
+    title: "تقييمات الفيديوهات",
+    subtitle: "تقييم المشتركين لفيديوهات التمارين، وما يكتبونه عنها.",
+    searchPlaceholder: "ابحث باسم المشترك…",
+    noRatings: "لا توجد تقييمات بعد",
+    noRatingsDesc: "ستظهر التقييمات هنا بعد أن يقيّم أحد المشتركين فيديو من صفحة المشاهدة.",
+    noNote: "بدون ملاحظة",
+    average: "متوسط التقييم",
+    totalRatings: "عدد التقييمات",
+    withNotes: "بملاحظة",
   },
   portal: {
     signOut: "الخروج من هذا الجهاز",

@@ -25,6 +25,7 @@ import {
   DatabaseBackup,
   Crown,
   DoorOpen,
+  Star,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -76,7 +77,10 @@ export function AppShell({
 
   const groups: NavGroup[] = [
     isMaster && {
-      items: [{ href: "/master", label: n.master, icon: Crown }],
+      items: [
+        { href: "/master", label: n.master, icon: Crown },
+        { href: "/ratings", label: n.ratings, icon: Star },
+      ],
     },
     // The summary is built from money, so it follows the finance section.
     has("FINANCE") && {

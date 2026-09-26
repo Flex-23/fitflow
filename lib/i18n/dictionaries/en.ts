@@ -83,6 +83,7 @@ const en = {
   },
   nav: {
     master: "Master",
+    ratings: "Video ratings",
     staffSection: "Staff",
     summary: "Summary",
     reception: "Reception",
@@ -859,6 +860,17 @@ const en = {
     newPasswordHint: "Leave blank to keep it",
     credentialsSaved: "Saved",
     wrongPassword: "That is not the current password.",
+  },
+  ratings: {
+    title: "Video ratings",
+    subtitle: "What members rate exercise videos, and what they write about them.",
+    searchPlaceholder: "Search by member name…",
+    noRatings: "No ratings yet",
+    noRatingsDesc: "Ratings will appear here once a member rates a video from the watch page.",
+    noNote: "No note",
+    average: "Average rating",
+    totalRatings: "Ratings given",
+    withNotes: "With a note",
   },
   portal: {
     signOut: "Sign out of this device",
