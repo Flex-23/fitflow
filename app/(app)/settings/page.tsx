@@ -3,7 +3,7 @@ import { MessageCircle, AlertTriangle } from "lucide-react";
 import { requireSection } from "@/lib/auth/dal";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
-import { getExpiringSoonThreshold, getSetting } from "@/lib/settings";
+import { getExpiringSoonThreshold, getSetting, getCourseAuthorName } from "@/lib/settings";
 import { isWhatsAppEnabled } from "@/lib/whatsapp";
 import { WA_NUMBER_KEY, WA_LINKED_AT_KEY } from "@/lib/whatsapp/worker-state";
 import { formatDate } from "@/lib/i18n/format";
@@ -28,6 +28,7 @@ export default async function SettingsPage() {
   const dict = await getDictionary(locale);
   const t = dict.manager;
   const threshold = await getExpiringSoonThreshold();
+  const courseAuthorName = await getCourseAuthorName();
   const whatsapp = isWhatsAppEnabled();
   const appUrl = resolveAppUrl();
   const publicUrl = !isLocalUrl(appUrl);
@@ -67,7 +68,11 @@ export default async function SettingsPage() {
             <CardTitle className="text-base">{dict.nav.notifications}</CardTitle>
           </CardHeader>
           <CardContent>
-            <SettingsForm threshold={threshold} dict={dict} />
+            <SettingsForm
+              threshold={threshold}
+              courseAuthorName={courseAuthorName}
+              dict={dict}
+            />
           </CardContent>
         </Card>
 

@@ -391,6 +391,10 @@ const en = {
     expiringThreshold: "Expiry warning (days before)",
     expiringThresholdDesc:
       "Members are flagged as “expiring soon” this many days before their end date.",
+    courseAuthorLabel: "Course author name (management)",
+    courseAuthorDesc:
+      "Shown at the bottom of courses written by management. Captains' courses carry the captain's name automatically. Leave blank to hide it.",
+    courseAuthorPlaceholder: "e.g. Baqir",
     whatsappTitle: "WhatsApp integration",
     whatsappDesc:
       "Saving a course opens WhatsApp on this computer at the member's chat with a ready message containing the file link — just press send. (WhatsApp cannot attach a file through a link, so the course travels as a private link.)",
@@ -707,6 +711,9 @@ const en = {
     pdfSupersetColumn: "Superset",
     pdfStart: "Start",
     pdfEnd: "End",
+    pdfHeight: "Height",
+    pdfWeight: "Weight",
+    pdfPreparedBy: "Prepared by",
     mainExercise: "Exercise",
     supersetPair: "Superset (optional)",
     supersetPlaceholder: "Superset exercise…",

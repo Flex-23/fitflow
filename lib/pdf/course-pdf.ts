@@ -26,15 +26,21 @@ export const RULE = rgb(0.88, 0.88, 0.9);
 export const GREEN = rgb(0.16, 0.6, 0.35);
 export const RED = rgb(0.8, 0.22, 0.2);
 
-let fontCache: Uint8Array | null = null;
-function fontBytes(): Uint8Array {
-  if (!fontCache) {
-    fontCache = new Uint8Array(
-      fs.readFileSync(path.join(process.cwd(), "lib/pdf/fonts/Amiri-Regular.ttf"))
-    );
+const fontCache = new Map<string, Uint8Array>();
+function fontBytes(file: string): Uint8Array {
+  let bytes = fontCache.get(file);
+  if (!bytes) {
+    bytes = new Uint8Array(fs.readFileSync(path.join(process.cwd(), "lib/pdf/fonts", file)));
+    fontCache.set(file, bytes);
   }
-  return fontCache;
+  return bytes;
 }
+
+// Reports keep Amiri; the member-facing courses use Noto Naskh Arabic — a
+// cleaner, more formal Naskh. Both carry the full Arabic presentation forms
+// (including the lam-alef ligatures), which the shaping here depends on.
+const REPORT_FONT = "Amiri-Regular.ttf";
+const COURSE_FONT = "NotoNaskhArabic-Regular.ttf";
 
 /**
  * pdf-lib hands every string to fontkit, which detects the script and, for
@@ -83,14 +89,14 @@ export class Builder {
   y = 0;
   rtl = false;
 
-  static async create(rtl: boolean) {
+  static async create(rtl: boolean, fontFile: string = REPORT_FONT) {
     const b = new Builder();
     b.doc = await PDFDocument.create();
     b.doc.registerFontkit(visualOrderFontkit);
-    // Never subset: fontkit's subsetter drops the components of Amiri's
-    // composite glyphs, leaving most letters blank in every viewer. The full
-    // font adds ~210 KB compressed, which WhatsApp handles fine.
-    b.font = await b.doc.embedFont(fontBytes(), { subset: false });
+    // Never subset: fontkit's subsetter drops the components of composite
+    // glyphs, leaving most letters blank in every viewer. The full font adds
+    // a couple hundred KB, which WhatsApp handles fine.
+    b.font = await b.doc.embedFont(fontBytes(fontFile), { subset: false });
     b.rtl = rtl;
     b.addPage();
     return b;
@@ -272,12 +278,13 @@ const FULL: Span = { x: CM, w: CW };
 class DarkCourse {
   private constructor(
     readonly b: Builder,
-    private mark: PDFImage
+    private mark: PDFImage,
+    private footer: string | null
   ) {}
 
-  static async create(rtl: boolean) {
-    const b = await Builder.create(rtl);
-    const c = new DarkCourse(b, await b.doc.embedPng(watermarkBytes()));
+  static async create(rtl: boolean, footer: string | null = null) {
+    const b = await Builder.create(rtl, COURSE_FONT);
+    const c = new DarkCourse(b, await b.doc.embedPng(watermarkBytes()), footer);
     c.paint();
     return c;
   }
@@ -311,6 +318,15 @@ class DarkCourse {
       height: h,
       opacity: 0.09,
     });
+    // Who wrote the course, at the foot of every page, physically on the left
+    // in both directions (the end edge in Arabic, the start edge in English).
+    if (this.footer) {
+      this.draw(this.footer, FULL, 26, {
+        size: 9,
+        color: SOFT,
+        align: this.rtl ? "end" : "start",
+      });
+    }
     this.b.y = PAGE.h - CM;
   }
 
@@ -380,11 +396,14 @@ class DarkCourse {
 /** One fact about the member, shown in the card at the top of each page. */
 type CardItem = { label?: string; value: string; strong?: boolean };
 
-function pageTop(c: DarkCourse, title: string, card: CardItem[] | null) {
-  const base = c.y - 16;
+function pageTop(c: DarkCourse, dayLabel: string, card: CardItem[] | null) {
+  const base = c.y - 18;
+  // Brand mark on the left (the end edge in Arabic), the day heading on the
+  // right (the start edge) — the course title itself is gone; the day is the
+  // header now.
   c.draw("FitFlow", FULL, base, { size: 20, color: LIME, align: "end" });
-  c.draw(title, FULL, base, { size: 17, color: WHITE, align: "start" });
-  c.y = base - 16;
+  c.draw(dayLabel, FULL, base, { size: 18, color: WHITE, align: "start" });
+  c.y = base - 14;
   if (card?.length) memberCard(c, card);
   else c.y -= 6;
 }
@@ -446,12 +465,6 @@ function memberCard(c: DarkCourse, items: CardItem[]) {
   c.y = top - h - 8;
 }
 
-function dayTitle(c: DarkCourse, label: string) {
-  const base = c.y - 22;
-  c.draw(label, FULL, base, { size: 19, color: LIME, align: "center" });
-  c.y = base - 16;
-}
-
 // ───────────────────────── Training ─────────────────────────
 
 export type TrainingPdfData = {
@@ -463,21 +476,20 @@ export type TrainingPdfData = {
    * Null for a template, which nobody is reading exercises out of.
    */
   courseToken?: string | null;
+  /** Course author, printed at the foot of every page. Null hides the line. */
+  authorName?: string | null;
   labels: {
-    programTitle: string;
     exerciseColumn: string;
     supersetColumn: string;
-    phone: string;
     age: string;
-    heightWeight: string;
+    height: string;
+    weight: string;
     start: string;
     end: string;
-    gender: string;
+    preparedBy: string;
   };
   member?: {
     name: string;
-    phone: string;
-    gender: string;
     age: number | null;
     height: number | null;
     weight: number | null;
@@ -486,7 +498,6 @@ export type TrainingPdfData = {
     startDate: string | null;
     endDate: string | null;
   } | null;
-  title?: string | null;
   days: {
     label: string;
     exercises: {
@@ -616,28 +627,27 @@ function trainingCard(data: TrainingPdfData): CardItem[] | null {
   const m = data.member;
   if (!m) return null;
   const l = data.labels;
-  const items: CardItem[] = [
-    { value: m.name, strong: true },
-    { label: l.phone, value: m.phone },
-    { label: l.gender, value: m.gender },
-  ];
+  // Phone and gender are deliberately not shown — the course is the member's
+  // own, and their name is enough of a heading.
+  const items: CardItem[] = [{ value: m.name, strong: true }];
   if (m.age != null) items.push({ label: l.age, value: String(m.age) });
-  if (m.height != null || m.weight != null) {
-    // Digits are laid out left to right, so in Arabic the pair is flipped to
-    // keep the height on the right, under the word "height" that is read first.
-    const pair = [m.height ?? "-", m.weight ?? "-"];
-    if (data.rtl) pair.reverse();
-    items.push({ label: l.heightWeight, value: pair.join(" / ") });
-  }
+  // Height and weight are separate fields, each read right-to-left after its
+  // own label, rather than one "185 / 120" pair that flips in Arabic.
+  if (m.height != null) items.push({ label: l.height, value: String(m.height) });
+  if (m.weight != null) items.push({ label: l.weight, value: String(m.weight) });
   for (const measurement of m.measurements) items.push({ value: measurement });
   if (m.startDate) items.push({ label: l.start, value: m.startDate });
   if (m.endDate) items.push({ label: l.end, value: m.endDate });
   return items;
 }
 
+/** "Prepared by: <name>", or null when there is no author to print. */
+function authorFooter(labels: { preparedBy: string }, name?: string | null) {
+  return name ? `${labels.preparedBy}: ${name}` : null;
+}
+
 export async function buildTrainingPdf(data: TrainingPdfData): Promise<Uint8Array> {
-  const c = await DarkCourse.create(data.rtl);
-  const title = data.title || data.labels.programTitle;
+  const c = await DarkCourse.create(data.rtl, authorFooter(data.labels, data.authorName));
   const card = trainingCard(data);
   const cols = trainingColumns(data.rtl);
   // The course token rides along so the video page can offer a way back to
@@ -650,13 +660,12 @@ export async function buildTrainingPdf(data: TrainingPdfData): Promise<Uint8Arra
     link: e.videoToken ? `${data.baseUrl}/watch/${e.videoToken}${back}` : null,
   });
 
-  if (!data.days.length) pageTop(c, title, card);
+  if (!data.days.length) pageTop(c, "", card);
 
   data.days.forEach((day, d) => {
     if (d > 0) c.newPage();
     const top = () => {
-      pageTop(c, title, card);
-      dayTitle(c, day.label);
+      pageTop(c, day.label, card);
       columnHeader(c, cols, data.labels);
     };
     top();
@@ -688,8 +697,10 @@ export async function buildTrainingPdf(data: TrainingPdfData): Promise<Uint8Arra
 
 export type NutritionPdfData = {
   rtl: boolean;
-  labels: { programTitle: string; phone: string };
-  member?: { name: string; phone: string } | null;
+  /** Course author, printed at the foot of every page. Null hides the line. */
+  authorName?: string | null;
+  labels: { preparedBy: string };
+  member?: { name: string } | null;
   days: { label: string; meals: string[] }[];
 };
 
@@ -715,22 +726,17 @@ function mealRow(c: DarkCourse, n: number, meal: string, continueOnNewPage: () =
 }
 
 export async function buildNutritionPdf(data: NutritionPdfData): Promise<Uint8Array> {
-  const c = await DarkCourse.create(data.rtl);
-  const title = data.labels.programTitle;
+  const c = await DarkCourse.create(data.rtl, authorFooter(data.labels, data.authorName));
   const card: CardItem[] | null = data.member
-    ? [
-        { value: data.member.name, strong: true },
-        { label: data.labels.phone, value: data.member.phone },
-      ]
+    ? [{ value: data.member.name, strong: true }]
     : null;
 
-  if (!data.days.length) pageTop(c, title, card);
+  if (!data.days.length) pageTop(c, "", card);
 
   data.days.forEach((day, d) => {
     if (d > 0) c.newPage();
     const top = () => {
-      pageTop(c, title, card);
-      dayTitle(c, day.label);
+      pageTop(c, day.label, card);
       c.hline(c.y);
     };
     top();

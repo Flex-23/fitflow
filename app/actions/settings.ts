@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireMaster, requireSection } from "@/lib/auth/dal";
-import { setSetting } from "@/lib/settings";
+import { setSetting, COURSE_AUTHOR_NAME_KEY } from "@/lib/settings";
 import { logActivity } from "@/lib/activity";
 import { GATE_ENABLED_KEY } from "@/lib/gate/enabled";
 import { VIDEO_RATING_ENABLED_KEY } from "@/lib/video-rating";
@@ -18,6 +18,12 @@ export async function updateSettings(
     return { error: "invalid" };
   }
   await setSetting("expiringSoonThresholdDays", String(threshold));
+
+  // The management name printed on courses they write; trimmed and capped so a
+  // stray paste cannot overflow the footer. Blank clears it.
+  const author = String(formData.get("courseAuthorName") ?? "").trim().slice(0, 60);
+  await setSetting(COURSE_AUTHOR_NAME_KEY, author);
+
   revalidatePath("/settings");
   revalidatePath("/notifications");
   revalidatePath("/active");

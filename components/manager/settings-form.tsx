@@ -12,9 +12,11 @@ import type { Dictionary } from "@/lib/i18n";
 
 export function SettingsForm({
   threshold,
+  courseAuthorName,
   dict,
 }: {
   threshold: number;
+  courseAuthorName: string;
   dict: Dictionary;
 }) {
   const t = dict.manager;
@@ -40,6 +42,18 @@ export function SettingsForm({
           required
         />
         <p className="text-xs text-muted-foreground">{t.expiringThresholdDesc}</p>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="courseAuthorName">{t.courseAuthorLabel}</Label>
+        <Input
+          id="courseAuthorName"
+          name="courseAuthorName"
+          maxLength={60}
+          defaultValue={courseAuthorName}
+          placeholder={t.courseAuthorPlaceholder}
+          className="max-w-xs"
+        />
+        <p className="text-xs text-muted-foreground">{t.courseAuthorDesc}</p>
       </div>
       <Button type="submit" variant="brand" disabled={pending}>
         {pending ? dict.common.saving : dict.common.save}

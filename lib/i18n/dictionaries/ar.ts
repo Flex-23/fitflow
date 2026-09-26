@@ -390,6 +390,10 @@ const ar: Dictionary = {
     expiringThreshold: "تنبيه الانتهاء (أيام قبل)",
     expiringThresholdDesc:
       "يتم تمييز الأعضاء بأنهم «قاربوا على الانتهاء» قبل تاريخ انتهائهم بهذا العدد من الأيام.",
+    courseAuthorLabel: "اسم منظم الكورس (الإدارة)",
+    courseAuthorDesc:
+      "يظهر أسفل الكورسات التي تكتبها الإدارة. كورسات الكباتن تحمل اسم الكابتن تلقائياً. اتركه فارغاً لإخفائه.",
+    courseAuthorPlaceholder: "مثال: باقر المصمم",
     whatsappTitle: "تكامل واتساب",
     whatsappDesc:
       "عند حفظ الكورس يفتح برنامج واتساب على هذه الحاسبة على محادثة العضو برسالة جاهزة تحوي رابط الملف — اضغط إرسال فقط. (واتساب لا يسمح بإرفاق الملف تلقائياً عبر الرابط، لذا يُرسل كرابط خاص.)",
@@ -706,6 +710,9 @@ const ar: Dictionary = {
     pdfSupersetColumn: "سوبر",
     pdfStart: "البدء",
     pdfEnd: "الانتهاء",
+    pdfHeight: "الطول",
+    pdfWeight: "الوزن",
+    pdfPreparedBy: "منظم الكورس",
     mainExercise: "التمرين",
     supersetPair: "سوبر ست (اختياري)",
     supersetPlaceholder: "تمرين السوبر ست…",

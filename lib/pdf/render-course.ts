@@ -1,12 +1,30 @@
 import "server-only";
+import type { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getDictionary, type Locale } from "@/lib/i18n";
 import { formatDate } from "@/lib/i18n/format";
+import { getCourseAuthorName } from "@/lib/settings";
 import { FEMALE_MEASUREMENTS } from "@/schemas/member";
 import { buildTrainingPdf, buildNutritionPdf } from "./course-pdf";
 
 /** Strip the unit suffix from a measurement label: "Chest (cm)" → "Chest". */
 const bare = (label: string) => label.replace(/\s*\(.*\)\s*$/, "");
+
+/**
+ * The name to print at the foot of a course.
+ *
+ * A captain's course carries the captain's own name automatically. Anyone
+ * else — a manager or the master — has no job title to borrow, so their
+ * courses show the name the gym set in settings, or nothing if it is blank.
+ */
+async function authorName(
+  createdBy: { role: Role; displayName: string } | null
+): Promise<string | null> {
+  if (createdBy?.role === "CAPTAIN") return createdBy.displayName;
+  return (await getCourseAuthorName()) || null;
+}
+
+const CREATED_BY = { select: { role: true, displayName: true } } as const;
 
 export function pdfResponse(bytes: Uint8Array | Buffer, filename: string) {
   return new Response(Buffer.from(bytes), {
@@ -28,6 +46,7 @@ export async function renderTrainingPdf(
   const course = await prisma.trainingCourse.findUnique({
     where: { id },
     include: {
+      createdBy: CREATED_BY,
       member: {
         include: { subscriptions: { orderBy: { createdAt: "desc" }, take: 1 } },
       },
@@ -47,22 +66,20 @@ export async function renderTrainingPdf(
     rtl: locale === "ar",
     baseUrl,
     courseToken: course.shareToken,
+    authorName: await authorName(course.createdBy),
     labels: {
-      programTitle: dict.captain.trainingTitle,
       exerciseColumn: dict.captain.pdfExerciseColumn,
       supersetColumn: dict.captain.pdfSupersetColumn,
-      phone: dict.common.phone,
       age: dict.reception.age,
-      heightWeight: dict.captain.heightWeight,
+      height: dict.captain.pdfHeight,
+      weight: dict.captain.pdfWeight,
       start: dict.captain.pdfStart,
       end: dict.captain.pdfEnd,
-      gender: dict.reception.gender,
+      preparedBy: dict.captain.pdfPreparedBy,
     },
     member: m
       ? {
           name: m.name,
-          phone: m.phone,
-          gender: m.gender === "FEMALE" ? dict.reception.female : dict.reception.male,
           age: m.age,
           height: m.height,
           weight: m.weight,
@@ -76,7 +93,6 @@ export async function renderTrainingPdf(
           endDate: sub ? formatDate(sub.endDate, locale) : null,
         }
       : null,
-    title: course.title,
     days: course.days.map((d) => ({
       label: d.label,
       exercises: d.exercises.map((e) => ({
@@ -97,7 +113,8 @@ export async function renderNutritionPdf(
   const course = await prisma.nutritionCourse.findUnique({
     where: { id },
     include: {
-      member: { select: { name: true, phone: true } },
+      createdBy: CREATED_BY,
+      member: { select: { name: true } },
       days: {
         orderBy: { order: "asc" },
         include: { meals: { orderBy: { order: "asc" } } },
@@ -110,13 +127,9 @@ export async function renderNutritionPdf(
 
   return buildNutritionPdf({
     rtl: locale === "ar",
-    labels: {
-      programTitle: dict.captain.nutritionTitle,
-      phone: dict.common.phone,
-    },
-    member: course.member
-      ? { name: course.member.name, phone: course.member.phone }
-      : null,
+    authorName: await authorName(course.createdBy),
+    labels: { preparedBy: dict.captain.pdfPreparedBy },
+    member: course.member ? { name: course.member.name } : null,
     days: course.days.map((d, i) => ({
       label: d.label || `${dict.captain.day} ${i + 1}`,
       meals: d.meals.map((m) => m.text),
