@@ -176,7 +176,7 @@ model Member {
   // reports to the C3 panel. This is the value the gate bridge looks up.
   cardWiegand Int?
   // One-shot credential for the member's own page, sent over WhatsApp.
-  // It is minted when staff press send, dies ten minutes later, and is
+  // It is minted when staff press send, dies three minutes later, and is
   // destroyed the moment it is used — so the message left sitting in a chat
   // is worthless to anyone who reads it afterwards. Null means there is no
   // live invitation: either it was used, it expired, or none was ever sent.

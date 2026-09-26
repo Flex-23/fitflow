@@ -876,7 +876,7 @@ const en = {
     signOut: "Sign out of this device",
     linkExpired: "This link has expired",
     linkExpiredBody:
-      "A link works once, and only for ten minutes. Ask the gym to send you a new one.",
+      "A link works once, and only for three minutes. Ask the gym to send you a new one.",
     tooMany: "Too many attempts",
     tooManyBody: "Try again in half an hour, or ask the gym for a new link.",
     revoked: "This device was signed out",
