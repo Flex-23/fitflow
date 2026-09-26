@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { requireSection } from "@/lib/auth/dal";
-import { freezeSchema, cancelSchema, renewSchema } from "@/schemas/subscription";
+import {
+  freezeSchema,
+  cancelSchema,
+  renewSchema,
+  FREEZE_MIN_DAYS_LEFT,
+} from "@/schemas/subscription";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity";
 import { type ActionState, DAY_MS } from "@/lib/action-state";
@@ -20,7 +25,16 @@ export async function freezeSubscription(
 
   const sub = await prisma.subscription.findUnique({ where: { id: subscriptionId } });
   if (!sub) return { error: "not_found" };
-  if (sub.status === "CANCELLED") return { error: "invalid_state" };
+
+  // Only an active subscription that is running right now can be frozen —
+  // not an expired, cancelled, already frozen or not-yet-started one — and
+  // only while it still has enough days left to be worth pausing.
+  const now = new Date();
+  if (sub.status !== "ACTIVE" || sub.startDate > now || sub.endDate < now) {
+    return { error: "not_active" };
+  }
+  const daysLeft = Math.ceil((sub.endDate.getTime() - now.getTime()) / DAY_MS);
+  if (daysLeft < FREEZE_MIN_DAYS_LEFT) return { error: "too_close" };
 
   // Extend the end date by the frozen days (compensation) and pause the sub.
   const base = sub.freezeUntil && sub.freezeUntil > new Date() ? sub.freezeUntil : new Date();

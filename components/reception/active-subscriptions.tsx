@@ -18,6 +18,7 @@ import {
   unfreezeSubscription,
 } from "@/app/actions/subscriptions";
 import { emptyState } from "@/lib/action-state";
+import { FREEZE_MIN_DAYS_LEFT } from "@/schemas/subscription";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -220,7 +221,22 @@ export function ActiveSubscriptions({
                         {r.status === "FROZEN" ? (
                           <UnfreezeButton id={r.id} label={t.unfreeze} />
                         ) : (
-                          <Button variant="soft-brand" size="xs" onClick={() => open(r, "freeze")}>
+                          // Offered only while it can succeed: running now,
+                          // with enough days left. Otherwise it stays visible
+                          // but disabled, and says why on hover.
+                          <Button
+                            variant="soft-brand"
+                            size="xs"
+                            disabled={upcoming || left < FREEZE_MIN_DAYS_LEFT}
+                            title={
+                              upcoming
+                                ? t.freezeNotActive
+                                : left < FREEZE_MIN_DAYS_LEFT
+                                  ? t.freezeTooClose.replace("{n}", String(FREEZE_MIN_DAYS_LEFT))
+                                  : undefined
+                            }
+                            onClick={() => open(r, "freeze")}
+                          >
                             <Snowflake />
                             {t.freeze}
                           </Button>
@@ -321,10 +337,14 @@ function FreezeForm({
     if (state.ok) {
       toast.success(dict.status.frozen);
       onDone();
+    } else if (state.error === "not_active") {
+      toast.error(t.freezeNotActive);
+    } else if (state.error === "too_close") {
+      toast.error(t.freezeTooClose.replace("{n}", String(FREEZE_MIN_DAYS_LEFT)));
     } else if (state.error) {
       toast.error(dict.common.somethingWrong);
     }
-  }, [state, onDone, dict]);
+  }, [state, onDone, dict, t]);
 
   return (
     <form action={action} className="space-y-4">

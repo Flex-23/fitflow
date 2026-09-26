@@ -212,6 +212,8 @@ const ar: Dictionary = {
     unfreeze: "استئناف",
     frozenUntil: "موقوف حتى",
     freezeHistory: "سجل الإيقاف",
+    freezeNotActive: "يمكن تجميد الاشتراك المفعّل الجاري فقط.",
+    freezeTooClose: "لا يمكن التجميد إلا إذا بقي على انتهاء الاشتراك {n} أيام أو أكثر.",
     frozenDaysTotal: "أيام الإيقاف المضافة",
     cancelTitle: "إلغاء الاشتراك",
     cancelDesc: "سيتم إنهاء الاشتراك فوراً.",

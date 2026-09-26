@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+/**
+ * A subscription can only be frozen while it is running and has at least
+ * this many days left. Shared by the server rule and the button that offers it.
+ */
+export const FREEZE_MIN_DAYS_LEFT = 5;
+
 export const freezeSchema = z.object({
   subscriptionId: z.string().min(1),
   days: z.coerce.number().int().positive().max(365),

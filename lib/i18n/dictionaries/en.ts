@@ -212,6 +212,8 @@ const en = {
     unfreeze: "Unfreeze",
     frozenUntil: "Frozen until",
     freezeHistory: "Freeze history",
+    freezeNotActive: "Only a running, active subscription can be frozen.",
+    freezeTooClose: "A subscription can only be frozen with {n} or more days left.",
     frozenDaysTotal: "Days credited",
     cancelTitle: "Cancel subscription",
     cancelDesc: "This ends the subscription immediately.",
