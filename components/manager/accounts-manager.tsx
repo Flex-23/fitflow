@@ -221,7 +221,11 @@ export function AccountsManager({
                         {t.createdOn} {formatDate(a.createdAt, locale)}
                       </div>
                     </TableCell>
-                    <TableCell dir="ltr" className="truncate text-start font-mono text-sm">
+                    {/* Rendered LTR so the username reads correctly, but
+                        end-aligned so it sits under its own header (which,
+                        being Arabic, hugs the RTL start / right edge)
+                        instead of drifting to the far left of the column. */}
+                    <TableCell dir="ltr" className="truncate text-end font-mono text-sm">
                       {a.username}
                     </TableCell>
                     <TableCell justify="center">
