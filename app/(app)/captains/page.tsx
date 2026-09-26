@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { requireSection } from "@/lib/auth/dal";
+import { assignableRoles } from "@/lib/auth/rbac";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -50,7 +51,7 @@ export default async function CaptainsPage() {
         accounts={accounts}
         dict={dict}
         locale={locale}
-        isMaster={me.role === "MASTER"}
+        assignableRoles={assignableRoles(me)}
       />
     </div>
   );

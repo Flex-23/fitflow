@@ -89,21 +89,16 @@ export function BackupManager({
         </Button>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2">
-        <Card className="p-4">
-          <h3 className="flex items-center gap-2 text-sm font-semibold">
-            <Info className="size-4 text-brand" />
-            {t.whatIsSaved}
-          </h3>
-          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{t.savedItems}</p>
-        </Card>
-        <Card className="p-4 border-warning/40 bg-warning/5">
-          <h3 className="flex items-center gap-2 text-sm font-semibold">
-            <ShieldAlert className="size-4 text-warning" />
-            {dict.videos.title}
-          </h3>
-        </Card>
-      </div>
+      {/* Only one card here now: the warning beside it described a storage
+          folder that no longer exists, and removing its text left an empty
+          amber box with a heading and nothing under it. */}
+      <Card className="p-4">
+        <h3 className="flex items-center gap-2 text-sm font-semibold">
+          <Info className="size-4 text-brand" />
+          {t.whatIsSaved}
+        </h3>
+        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{t.savedItems}</p>
+      </Card>
 
       {backups.length === 0 ? (
         <EmptyState

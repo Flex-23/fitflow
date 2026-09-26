@@ -126,9 +126,9 @@ export function AccountsManager({
   accounts,
   dict,
   locale,
-  isMaster,
+  assignableRoles,
 }: {
-  isMaster: boolean;
+  assignableRoles: Role[];
   accounts: AccountRow[];
   dict: Dictionary;
   locale: Locale;
@@ -172,9 +172,15 @@ export function AccountsManager({
                 <TableHead justify="center" className="w-[5%]">#</TableHead>
                 <TableHead className="w-[24%]">{t.displayName}</TableHead>
                 <TableHead className="w-[15%]">{dict.auth.username}</TableHead>
-                <TableHead className="w-[13%]">{t.role}</TableHead>
-                <TableHead className="w-[10%]">{dict.common.status}</TableHead>
-                <TableHead className="w-[10%]">{t.canAddVideos}</TableHead>
+                <TableHead justify="center" className="w-[13%]">
+                  {t.role}
+                </TableHead>
+                <TableHead justify="center" className="w-[10%]">
+                  {dict.common.status}
+                </TableHead>
+                <TableHead justify="center" className="w-[10%]">
+                  {t.canAddVideos}
+                </TableHead>
                 <TableHead justify="end" className="w-[23%]">{dict.common.actions}</TableHead>
               </TableRow>
             </TableHeader>
@@ -202,27 +208,29 @@ export function AccountsManager({
                     <TableCell dir="ltr" className="truncate text-start font-mono text-sm">
                       {a.username}
                     </TableCell>
-                    <TableCell>
+                    <TableCell justify="center">
                       <Badge variant={roleTone[a.role]} className="gap-1">
                         <Icon className="size-3" />
                         {roleLabel(a.role)}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell justify="center">
                       <Badge variant={a.isActive ? "success" : "muted"}>
                         {a.isActive ? t.activeAccount : dict.status.cancelled}
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      {a.role === "CAPTAIN" ? (
-                        <VideoToggle account={a} />
-                      ) : a.role === "MANAGER" ? (
-                        <Check className="size-4 text-success" />
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
+                    <TableCell justify="center">
+                      <div className="flex items-center justify-center">
+                        {a.role === "CAPTAIN" ? (
+                          <VideoToggle account={a} />
+                        ) : a.role === "MANAGER" ? (
+                          <Check className="size-4 text-success" />
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell justify="end">
                       <div className="flex items-center justify-end gap-1">
                         <Button
                           variant="soft"
@@ -257,7 +265,11 @@ export function AccountsManager({
       )}
 
       <Dialog open={mode === "create"} onClose={() => setMode(null)} title={t.newAccount}>
-        <CreateForm dict={dict} isMaster={isMaster} onDone={() => setMode(null)} />
+        <CreateForm
+          dict={dict}
+          assignableRoles={assignableRoles}
+          onDone={() => setMode(null)}
+        />
       </Dialog>
 
       <Dialog open={mode === "edit"} onClose={() => setMode(null)} title={t.editAccount}>
@@ -266,7 +278,7 @@ export function AccountsManager({
             key={selected.id}
             account={selected}
             dict={dict}
-            isMaster={isMaster}
+            assignableRoles={assignableRoles}
             onDone={() => setMode(null)}
           />
         )}
@@ -346,14 +358,17 @@ function RoleSelect({
   onChange,
   dict,
   required,
-  allowManager,
+  roles,
 }: {
   value: Role | "";
   onChange: (r: Role) => void;
   dict: Dictionary;
   required?: boolean;
-  /** Only the master may hand out the manager role. */
-  allowManager: boolean;
+  /**
+   * The roles this person may hand out, worked out on the server. Offering
+   * one the server will refuse is not a choice, it is a dead end.
+   */
+  roles: Role[];
 }) {
   return (
     <Select
@@ -366,9 +381,11 @@ function RoleSelect({
       <option value="" disabled>
         {dict.manager.chooseRole}
       </option>
-      <option value="RECEPTION">{dict.roles.reception}</option>
-      <option value="CAPTAIN">{dict.roles.captain}</option>
-      {allowManager && <option value="MANAGER">{dict.roles.manager}</option>}
+      {roles.includes("RECEPTION") && (
+        <option value="RECEPTION">{dict.roles.reception}</option>
+      )}
+      {roles.includes("CAPTAIN") && <option value="CAPTAIN">{dict.roles.captain}</option>}
+      {roles.includes("MANAGER") && <option value="MANAGER">{dict.roles.manager}</option>}
     </Select>
   );
 }
@@ -438,11 +455,11 @@ function useAccountFeedback(state: ActionState, dict: Dictionary, onDone: () => 
 function CreateForm({
   dict,
   onDone,
-  isMaster,
+  assignableRoles,
 }: {
   dict: Dictionary;
   onDone: () => void;
-  isMaster: boolean;
+  assignableRoles: Role[];
 }) {
   const t = dict.manager;
   const [state, action, pending] = useActionState(createAccount, emptyState);
@@ -498,7 +515,7 @@ function CreateForm({
           onChange={setRole}
           dict={dict}
           required
-          allowManager={isMaster}
+          roles={assignableRoles}
         />
       </div>
       {role === "CAPTAIN" && <VideoPermissionField dict={dict} />}
@@ -519,12 +536,12 @@ function EditForm({
   account,
   dict,
   onDone,
-  isMaster,
+  assignableRoles,
 }: {
   account: AccountRow;
   dict: Dictionary;
   onDone: () => void;
-  isMaster: boolean;
+  assignableRoles: Role[];
 }) {
   const t = dict.manager;
   const [state, action, pending] = useActionState(updateAccount, emptyState);
@@ -553,7 +570,13 @@ function EditForm({
           value={role}
           onChange={setRole}
           dict={dict}
-          allowManager={isMaster || account.role === "MANAGER"}
+          // The account's own role stays on the list even when this person
+          // could not create one, so editing a name never silently demotes.
+          roles={
+            assignableRoles.includes(account.role)
+              ? assignableRoles
+              : [...assignableRoles, account.role]
+          }
         />
         {account.isSelf && <p className="text-xs text-muted-foreground">{t.selfLockout}</p>}
       </div>

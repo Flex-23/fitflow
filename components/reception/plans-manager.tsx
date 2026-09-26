@@ -83,27 +83,37 @@ export function PlansManager({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>{t.planName}</TableHead>
-                <TableHead>{t.durationDays}</TableHead>
-                <TableHead>{dict.common.price}</TableHead>
-                <TableHead>{dict.common.status}</TableHead>
-                <TableHead justify="end">{dict.common.actions}</TableHead>
+                <TableHead className="w-[32%]">{t.planName}</TableHead>
+                <TableHead justify="center" className="w-[16%]">
+                  {t.durationDays}
+                </TableHead>
+                <TableHead justify="end" className="w-[18%]">
+                  {dict.common.price}
+                </TableHead>
+                <TableHead justify="center" className="w-[14%]">
+                  {dict.common.status}
+                </TableHead>
+                <TableHead justify="end" className="w-[20%]">
+                  {dict.common.actions}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {plans.map((p) => (
                 <TableRow key={p.id} className={p.isActive ? "" : "opacity-60"}>
                   <TableCell className="font-medium">{p.name}</TableCell>
-                  <TableCell>
+                  <TableCell justify="center">
                     {p.durationDays} {dict.common.days}
                   </TableCell>
-                  <TableCell>{money(p.price)}</TableCell>
-                  <TableCell>
+                  <TableCell justify="end" className="font-semibold">
+                    {money(p.price)}
+                  </TableCell>
+                  <TableCell justify="center">
                     <Badge variant={p.isActive ? "success" : "muted"}>
                       {p.isActive ? t.activePlan : t.archivedPlan}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell justify="end">
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="sm" onClick={() => openEdit(p)}>
                         <Pencil className="size-4" />

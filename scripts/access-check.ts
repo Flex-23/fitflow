@@ -161,12 +161,12 @@ async function main() {
   }
 
   console.log(wrong === 0 ? "\nEvery page answered as it should." : `\n${wrong} page(s) answered wrongly.`);
-  process.exit(wrong === 0 ? 0 : 1);
+  process.exitCode = wrong === 0 ? 0 : 1;
 }
 
 main()
   .catch((e) => {
     console.error(e);
-    process.exit(1);
+    process.exitCode = 1;
   })
   .finally(() => prisma.$disconnect());

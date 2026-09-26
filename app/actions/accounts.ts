@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireSection, requireUser } from "@/lib/auth/dal";
+import { canAssignRole } from "@/lib/auth/rbac";
 import {
   createAccountSchema,
   updateAccountSchema,
@@ -16,10 +17,8 @@ import type { ActionState } from "@/lib/action-state";
 /**
  * Who may create whom.
  *
- * Holding the staff section is enough for reception and captains. A manager
- * is different: managers hold permissions, and handing those out is the
- * master's job alone — otherwise a manager could mint a second manager and
- * grant it everything the master had withheld.
+ * Holding the staff section is not enough on its own: you can only hand out
+ * a role whose part of the system you hold yourself. See `assignableRoles`.
  */
 export async function createAccount(
   _prev: ActionState,
@@ -37,7 +36,7 @@ export async function createAccount(
     return { error: "invalid", fieldErrors: parsed.error.flatten().fieldErrors };
   }
   const { displayName, username, password, role, canAddVideos, sections } = parsed.data;
-  if (role === "MANAGER" && manager.role !== "MASTER") return { error: "forbidden" };
+  if (!canAssignRole(manager, role)) return { error: "forbidden" };
 
   const existing = await prisma.user.findUnique({ where: { username } });
   if (existing) return { error: "username_taken" };
@@ -97,8 +96,10 @@ export async function updateAccount(
   // The master is edited from its own screen, not from the staff roster —
   // where it does not even appear.
   if (target.role === "MASTER") return { error: "forbidden" };
-  // Promoting someone to manager hands out permissions; only the master may.
-  if (role === "MANAGER" && target.role !== "MANAGER" && manager.role !== "MASTER") {
+  // The same rule on the way in and on the way out: you may not move an
+  // account into a role you could not have created it in, and you may not
+  // take over one that is already outside what you hold.
+  if (!canAssignRole(manager, target.role) || !canAssignRole(manager, role)) {
     return { error: "forbidden" };
   }
 

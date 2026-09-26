@@ -98,3 +98,32 @@ export function roleHome(role: Role): string {
   if (role === "CAPTAIN") return "/training";
   return role === "MANAGER" ? "/summary" : "/registration";
 }
+
+/**
+ * The roles this person may hand out.
+ *
+ * You cannot give away what you do not hold. A manager trusted with the
+ * money but not with the desk should not be able to create a reception
+ * account — that would be a way around the very limit the master set, since
+ * the new account can do everything the section allows.
+ *
+ * Managers are the master's alone for the same reason, one level up: a
+ * manager who could mint another manager could grant it what was withheld.
+ */
+export function assignableRoles(user: Principal): Role[] {
+  if (user.role === "MASTER") return ["MANAGER", "RECEPTION", "CAPTAIN"];
+  // Nobody hands out anything without the staff section. Reception and
+  // captains never hold it, so the answer for them is nothing at all — and
+  // that has to be true of this function on its own, not only because the
+  // screen they would use is already out of reach.
+  if (!hasSection(user, "STAFF")) return [];
+
+  const roles: Role[] = [];
+  if (hasSection(user, "RECEPTION")) roles.push("RECEPTION");
+  if (hasSection(user, "COACHING")) roles.push("CAPTAIN");
+  return roles;
+}
+
+export function canAssignRole(user: Principal, role: Role): boolean {
+  return assignableRoles(user).includes(role);
+}

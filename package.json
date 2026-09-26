@@ -23,7 +23,8 @@
     "master": "tsx --env-file=.env scripts/create-master.ts",
     "check:access": "tsx --env-file=.env scripts/access-check.ts",
     "check:rules": "tsx --env-file=.env scripts/rules-check.ts",
-    "check:gate": "tsx --env-file=.env scripts/gate-flag-check.ts"
+    "check:gate": "tsx --env-file=.env scripts/gate-flag-check.ts",
+    "check:roles": "tsx --env-file=.env scripts/roles-check.ts"
   },
   "prisma": {
     "seed": "tsx --env-file=.env prisma/seed.ts"

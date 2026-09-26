@@ -42,8 +42,13 @@ export default async function MemberPage({
 
   const session = await getMemberSession();
   if (!session) {
+    // Someone who followed a link deserves to be told what happened to it.
     if (e === "locked") return <Locked title={t.tooMany} body={t.tooManyBody} />;
-    return <Locked title={t.linkExpired} body={t.linkExpiredBody} />;
+    if (e) return <Locked title={t.linkExpired} body={t.linkExpiredBody} />;
+    // Nobody arrives at a bare /me on purpose: it is the address someone
+    // typed, or a bookmark from a phone that has since been signed out.
+    // There is nothing of theirs to show, so this is the sign-in page.
+    redirect("/login");
   }
 
   const me = await getMemberPortal(session.memberId);
