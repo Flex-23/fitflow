@@ -253,8 +253,8 @@ const LINE = rgb(0.22, 0.235, 0.27);
 
 const CM = 40;
 const CW = PAGE.w - CM * 2;
-const BODY = 11;
-const LINE_H = 17;
+const BODY = 12.5;
+const LINE_H = 19;
 const CELL_PAD = 8;
 const INSET = 8;
 /** Room taken by the small play mark in front of a name that has a video. */
@@ -396,45 +396,45 @@ class DarkCourse {
 /** One fact about the member, shown in the card at the top of each page. */
 type CardItem = { label?: string; value: string; strong?: boolean };
 
-function pageTop(c: DarkCourse, dayLabel: string, card: CardItem[] | null) {
-  const base = c.y - 18;
-  // Brand mark on the left (the end edge in Arabic), the day heading on the
-  // right (the start edge) — the course title itself is gone; the day is the
-  // header now.
-  c.draw("FitFlow", FULL, base, { size: 20, color: LIME, align: "end" });
-  c.draw(dayLabel, FULL, base, { size: 18, color: WHITE, align: "start" });
-  c.y = base - 14;
-  if (card?.length) memberCard(c, card);
-  else c.y -= 6;
-}
-
-function memberCard(c: DarkCourse, items: CardItem[]) {
-  const size = 10.5;
-  const strongSize = 12.5;
-  const gap = 18;
-  const pad = 10;
-  const lineH = 18;
+/**
+ * The card at the top of every page: the day heading, then the member's
+ * details beneath it, inside one box. There is no separate brand line — the
+ * watermark carries the logo, and the day is the heading now.
+ */
+function pageTop(c: DarkCourse, dayLabel: string, items: CardItem[] | null) {
+  const size = 12;
+  const strongSize = 14;
+  const headingSize = 17;
+  const gap = 20;
+  const pad = 12;
+  const lineH = 20;
+  const headingH = 24;
   const labelGap = 4;
   const inner = CW - pad * 2;
 
-  // Flow the items from the start edge, wrapping onto a new line when full.
+  // Flow the member items from the start edge, wrapping onto a new line when
+  // full. Empty for a template that has no member — then the card is just the
+  // day heading.
   type Placed = { item: CardItem; lw: number; vw: number };
-  const lines: Placed[][] = [[]];
-  let used = 0;
-  for (const item of items) {
-    const lw = item.label ? c.width(`${item.label}:`, size) + labelGap : 0;
-    const vw = c.width(item.value, item.strong ? strongSize : size);
-    let line = lines[lines.length - 1];
-    if (line.length && used + gap + lw + vw > inner) {
-      line = [];
-      lines.push(line);
-      used = 0;
+  const lines: Placed[][] = [];
+  if (items?.length) {
+    lines.push([]);
+    let used = 0;
+    for (const item of items) {
+      const lw = item.label ? c.width(`${item.label}:`, size) + labelGap : 0;
+      const vw = c.width(item.value, item.strong ? strongSize : size);
+      let line = lines[lines.length - 1];
+      if (line.length && used + gap + lw + vw > inner) {
+        line = [];
+        lines.push(line);
+        used = 0;
+      }
+      used += (line.length ? gap : 0) + lw + vw;
+      line.push({ item, lw, vw });
     }
-    used += (line.length ? gap : 0) + lw + vw;
-    line.push({ item, lw, vw });
   }
 
-  const h = pad * 2 + lines.length * lineH - 6;
+  const h = pad * 2 + headingH + lines.length * lineH - (lines.length ? 4 : 0);
   const top = c.y;
   c.b.page.drawRectangle({
     x: CM,
@@ -446,7 +446,17 @@ function memberCard(c: DarkCourse, items: CardItem[]) {
     borderWidth: 0.6,
   });
 
-  let base = top - pad - 10;
+  // Day heading on the start edge (the right, in Arabic), inside the box.
+  const headBase = top - pad - headingSize + 3;
+  if (dayLabel) {
+    c.draw(dayLabel, { x: CM + pad, w: CW - pad * 2 }, headBase, {
+      size: headingSize,
+      color: LIME,
+      align: "start",
+    });
+  }
+
+  let base = top - pad - headingH - 6;
   for (const line of lines) {
     let offset = pad;
     for (const { item, lw, vw } of line) {
@@ -462,7 +472,7 @@ function memberCard(c: DarkCourse, items: CardItem[]) {
     }
     base -= lineH;
   }
-  c.y = top - h - 8;
+  c.y = top - h - 10;
 }
 
 // ───────────────────────── Training ─────────────────────────
@@ -544,10 +554,10 @@ function columnHeader(c: DarkCourse, cols: Columns, labels: TrainingPdfData["lab
   const h = 26;
   const top = c.y;
   c.b.page.drawRectangle({ x: CM, y: top - h, width: CW, height: h, color: CARD });
-  const base = top - h / 2 - 4.5;
-  c.draw("#", cols.num, base, { size: 11, color: SOFT, align: "center" });
-  c.draw(labels.exerciseColumn, cols.main, base, { size: 13, color: LIME, align: "center" });
-  c.draw(labels.supersetColumn, cols.sup, base, { size: 13, color: LIME, align: "center" });
+  const base = top - h / 2 - 5;
+  c.draw("#", cols.num, base, { size: 12, color: SOFT, align: "center" });
+  c.draw(labels.exerciseColumn, cols.main, base, { size: 14, color: LIME, align: "center" });
+  c.draw(labels.supersetColumn, cols.sup, base, { size: 14, color: LIME, align: "center" });
   for (const x of dividers(cols, c.rtl)) c.vline(x, top, top - h);
   c.y = top - h;
 }

@@ -50,7 +50,6 @@ export function SettingsForm({
           name="courseAuthorName"
           maxLength={60}
           defaultValue={courseAuthorName}
-          placeholder={t.courseAuthorPlaceholder}
           className="max-w-xs"
         />
         <p className="text-xs text-muted-foreground">{t.courseAuthorDesc}</p>

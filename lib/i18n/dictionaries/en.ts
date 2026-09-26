@@ -394,7 +394,6 @@ const en = {
     courseAuthorLabel: "Course author name (management)",
     courseAuthorDesc:
       "Shown at the bottom of courses written by management. Captains' courses carry the captain's name automatically. Leave blank to hide it.",
-    courseAuthorPlaceholder: "e.g. Baqir",
     whatsappTitle: "WhatsApp integration",
     whatsappDesc:
       "Saving a course opens WhatsApp on this computer at the member's chat with a ready message containing the file link — just press send. (WhatsApp cannot attach a file through a link, so the course travels as a private link.)",
