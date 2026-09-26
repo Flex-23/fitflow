@@ -84,11 +84,14 @@ export async function updateAccount(
   formData: FormData
 ): Promise<ActionState> {
   const manager = await requireSection("STAFF");
-  const parsed = updateAccountSchema.safeParse(Object.fromEntries(formData));
+  const parsed = updateAccountSchema.safeParse({
+    ...Object.fromEntries(formData),
+    sections: formData.getAll("sections"),
+  });
   if (!parsed.success) {
     return { error: "invalid", fieldErrors: parsed.error.flatten().fieldErrors };
   }
-  const { id, displayName, role, isActive, canAddVideos } = parsed.data;
+  const { id, displayName, role, isActive, canAddVideos, sections } = parsed.data;
 
   const target = await prisma.user.findUnique({ where: { id } });
   if (!target) return { error: "not_found" };
@@ -117,6 +120,9 @@ export async function updateAccount(
       role,
       isActive,
       canAddVideos: role === "MANAGER" ? true : role === "CAPTAIN" ? canAddVideos : false,
+      // Chosen on the form, same as at creation — so a manager's access can
+      // be revisited any time, not only decided once and left alone.
+      sections: role === "MANAGER" ? sections : [],
     },
   });
   await logActivity({
@@ -124,7 +130,10 @@ export async function updateAccount(
     action: "UPDATE_USER",
     targetType: "User",
     targetId: id,
-    details: `${displayName} (${role})${target.role !== role ? ` • was ${target.role}` : ""}`,
+    details:
+      role === "MANAGER"
+        ? `${displayName} (${role}) • ${sections.join(", ") || "—"}${target.role !== role ? ` • was ${target.role}` : ""}`
+        : `${displayName} (${role})${target.role !== role ? ` • was ${target.role}` : ""}`,
   });
   revalidatePath("/captains");
   revalidatePath("/videos");

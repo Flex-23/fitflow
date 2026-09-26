@@ -16,7 +16,7 @@ import {
   Dumbbell,
   Headset,
 } from "lucide-react";
-import type { Role } from "@prisma/client";
+import type { Role, Section } from "@prisma/client";
 import {
   createAccount,
   updateAccount,
@@ -55,6 +55,7 @@ export type AccountRow = {
   role: Role;
   isActive: boolean;
   canAddVideos: boolean;
+  sections: Section[];
   createdAt: string;
   isSelf: boolean;
 };
@@ -415,7 +416,14 @@ function VideoPermissionField({ dict, defaultChecked }: { dict: Dictionary; defa
  * and fixed. Reception and captains never see this — their remit comes with
  * the job, and there is nothing to choose.
  */
-function SectionsField({ dict }: { dict: Dictionary }) {
+function SectionsField({
+  dict,
+  defaultSections,
+}: {
+  dict: Dictionary;
+  /** Ticked from the start when editing an existing manager's access. */
+  defaultSections?: Section[];
+}) {
   const t = dict.manager;
   return (
     <fieldset className="space-y-2 rounded-xl border border-border p-3">
@@ -431,6 +439,7 @@ function SectionsField({ dict }: { dict: Dictionary }) {
               type="checkbox"
               name="sections"
               value={section}
+              defaultChecked={defaultSections?.includes(section)}
               className="size-4 accent-[var(--brand)]"
             />
             {dict.sections[section.toLowerCase() as "reception"]}
@@ -591,6 +600,7 @@ function EditForm({
         <span className="text-sm font-medium">{t.activeAccount}</span>
       </label>
       {role === "CAPTAIN" && <VideoPermissionField dict={dict} defaultChecked={account.canAddVideos} />}
+      {role === "MANAGER" && <SectionsField dict={dict} defaultSections={account.sections} />}
       <div className="flex justify-end gap-2 pt-1">
         <Button type="button" variant="ghost" onClick={onDone}>
           {dict.common.cancel}

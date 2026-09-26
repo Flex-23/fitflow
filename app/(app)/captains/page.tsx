@@ -25,6 +25,7 @@ export default async function CaptainsPage() {
       role: true,
       isActive: true,
       canAddVideos: true,
+      sections: true,
       createdAt: true,
     },
     orderBy: [{ role: "asc" }, { displayName: "asc" }],
@@ -37,6 +38,7 @@ export default async function CaptainsPage() {
     role: u.role,
     isActive: u.isActive,
     canAddVideos: u.canAddVideos,
+    sections: u.sections,
     createdAt: u.createdAt.toISOString(),
     isSelf: u.id === me.id,
   }));

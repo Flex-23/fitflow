@@ -46,6 +46,8 @@ export const updateAccountSchema = z.object({
   role: z.enum(ROLES),
   isActive: checkbox,
   canAddVideos: checkbox,
+  /** Only read when the account is (or becomes) a manager. */
+  sections: sectionList,
 });
 
 /** A user changing their own password must prove they know the current one. */
