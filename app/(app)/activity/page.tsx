@@ -4,6 +4,7 @@ import { requireSection } from "@/lib/auth/dal";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
+import { purgeDeletedAccounts } from "@/lib/activity";
 import { safeGymDay, gymDayRange, currentGymDay } from "@/lib/gym-day";
 import { PageHeader } from "@/components/layout/page-header";
 import { ActivityLog } from "@/components/manager/activity-log";
@@ -33,10 +34,14 @@ export default async function ActivityPage({
   // in the filter, are kept out of a manager's view of the log.
   const hideMaster = me.role === "MASTER" ? {} : { user: { role: { not: "MASTER" as const } } };
 
+  // Deleted accounts stay in the log (and the filter) until their retention
+  // runs out; this is where that clean-up happens.
+  await purgeDeletedAccounts();
+
   const [users, logs] = await Promise.all([
     prisma.user.findMany({
       where: me.role === "MASTER" ? {} : { role: { not: "MASTER" } },
-      select: { id: true, displayName: true, role: true },
+      select: { id: true, displayName: true, role: true, deletedAt: true },
       orderBy: { displayName: "asc" },
     }),
     prisma.activityLog.findMany({
@@ -46,7 +51,7 @@ export default async function ActivityPage({
         ...(validAction ? { action: validAction } : {}),
         ...hideMaster,
       },
-      include: { user: { select: { displayName: true, role: true } } },
+      include: { user: { select: { displayName: true, role: true, deletedAt: true } } },
       orderBy: { createdAt: "desc" },
       take: 500,
     }),
@@ -54,7 +59,9 @@ export default async function ActivityPage({
 
   const rows = logs.map((l) => ({
     id: l.id,
-    userName: l.user.displayName,
+    userName: l.user.deletedAt
+      ? `${l.user.displayName} (${dict.manager.deletedAccount})`
+      : l.user.displayName,
     userRole: l.user.role,
     action: l.action,
     details: l.details,
@@ -69,7 +76,10 @@ export default async function ActivityPage({
       />
       <ActivityLog
         rows={rows}
-        users={users.map((u) => ({ id: u.id, name: u.displayName }))}
+        users={users.map((u) => ({
+          id: u.id,
+          name: u.deletedAt ? `${u.displayName} (${dict.manager.deletedAccount})` : u.displayName,
+        }))}
         day={selectedDay}
         isToday={selectedDay === currentGymDay()}
         selectedUserId={userId ?? ""}

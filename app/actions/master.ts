@@ -32,9 +32,9 @@ export async function setManagerSections(
 
   const target = await prisma.user.findUnique({
     where: { id: managerId },
-    select: { id: true, role: true, displayName: true },
+    select: { id: true, role: true, displayName: true, deletedAt: true },
   });
-  if (!target) return { ok: false, reason: "not_found" };
+  if (!target || target.deletedAt) return { ok: false, reason: "not_found" };
   // Sections mean nothing for the other roles, and a master's own access is
   // not something to edit away by accident.
   if (target.role !== "MANAGER") return { ok: false, reason: "not_a_manager" };

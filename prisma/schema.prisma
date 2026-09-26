@@ -132,6 +132,11 @@ model User {
   /// Meaningless for the other roles: a master sees everything, and reception
   /// and captains have a fixed remit that comes with the job.
   sections       Section[] @default([])
+  /// Set when the account is deleted. The row is kept — signed out, hidden
+  /// from every list, its username freed — so its activity log survives for
+  /// a retention period, after which the account and its log are removed
+  /// for good (see lib/activity.ts).
+  deletedAt      DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

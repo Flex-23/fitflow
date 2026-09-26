@@ -94,7 +94,7 @@ export async function updateAccount(
   const { id, displayName, role, isActive, canAddVideos, sections } = parsed.data;
 
   const target = await prisma.user.findUnique({ where: { id } });
-  if (!target) return { error: "not_found" };
+  if (!target || target.deletedAt) return { error: "not_found" };
 
   // The master is edited from its own screen, not from the staff roster —
   // where it does not even appear.
@@ -152,9 +152,9 @@ export async function resetPassword(
   // Nobody resets the master's password from here; it changes its own.
   const target = await prisma.user.findUnique({
     where: { id: parsed.data.id },
-    select: { role: true },
+    select: { role: true, deletedAt: true },
   });
-  if (!target) return { error: "not_found" };
+  if (!target || target.deletedAt) return { error: "not_found" };
   if (target.role === "MASTER") return { error: "forbidden" };
 
   await prisma.user.update({
@@ -174,7 +174,7 @@ export async function resetPassword(
 export async function toggleVideoPermission(id: string, canAddVideos: boolean) {
   const manager = await requireSection("STAFF");
   const target = await prisma.user.findUnique({ where: { id } });
-  if (!target || target.role !== "CAPTAIN") return;
+  if (!target || target.deletedAt || target.role !== "CAPTAIN") return;
   await prisma.user.update({ where: { id }, data: { canAddVideos } });
   await logActivity({
     userId: manager.id,
@@ -188,21 +188,36 @@ export async function toggleVideoPermission(id: string, canAddVideos: boolean) {
 }
 
 /**
- * Remove an account. Its activity log rows cascade away; everything it
- * created (members, courses, payments…) is kept and simply loses the
- * "created by" link, so no gym data is ever lost with a staff member.
+ * Delete an account.
+ *
+ * Marked, not removed: the account is signed out and disabled at once, its
+ * username is freed for a new account, and it disappears from every list —
+ * but its activity log stays readable for DELETED_ACCOUNT_RETENTION_DAYS,
+ * after which purgeDeletedAccounts removes both. Everything it created
+ * (members, courses, payments…) is kept either way.
  */
 export async function deleteAccount(id: string): Promise<ActionState> {
   const manager = await requireSection("STAFF");
   const target = await prisma.user.findUnique({ where: { id } });
-  if (!target) return { error: "not_found" };
+  if (!target || target.deletedAt) return { error: "not_found" };
   if (target.role === "MASTER") return { error: "forbidden" };
+  // The same rule as editing: only an account whose role you could create.
+  if (!canAssignRole(manager, target.role)) return { error: "forbidden" };
   if (target.id === manager.id) return { error: "self_lockout" };
   if (!(await lastActiveManagerCheck(id, target.role === "MANAGER"))) {
     return { error: "last_manager" };
   }
 
-  await prisma.user.delete({ where: { id } });
+  await prisma.user.update({
+    where: { id },
+    data: {
+      isActive: false,
+      deletedAt: new Date(),
+      // Frees the name for a new account. Contains "~", which no username
+      // created through the app can, so it can never collide or be typed.
+      username: `${target.username}~deleted~${Date.now().toString(36)}`,
+    },
+  });
   await logActivity({
     userId: manager.id,
     action: "UPDATE_USER",

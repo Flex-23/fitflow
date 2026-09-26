@@ -4,6 +4,7 @@ import { assignableRoles } from "@/lib/auth/rbac";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
+import { purgeDeletedAccounts } from "@/lib/activity";
 import { PageHeader } from "@/components/layout/page-header";
 import { AccountsManager } from "@/components/manager/accounts-manager";
 
@@ -16,8 +17,12 @@ export default async function CaptainsPage() {
 
   // Every account a manager is allowed to know about. The master is not one
   // of them: it signs in elsewhere and answers to nobody here.
+  await purgeDeletedAccounts();
   const raw = await prisma.user.findMany({
-    where: me.role === "MASTER" ? {} : { role: { not: "MASTER" } },
+    where: {
+      deletedAt: null,
+      ...(me.role === "MASTER" ? {} : { role: { not: "MASTER" as const } }),
+    },
     select: {
       id: true,
       displayName: true,

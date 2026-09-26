@@ -362,6 +362,7 @@ const en = {
     canAddVideosDesc: "Allow this captain to upload videos to the library.",
     activeAccount: "Active",
     inactiveAccount: "Disabled",
+    deletedAccount: "deleted",
     resetPassword: "Reset password",
     create: "Create account",
     noAccounts: "No staff accounts",

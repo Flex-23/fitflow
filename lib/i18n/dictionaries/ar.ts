@@ -361,6 +361,7 @@ const ar: Dictionary = {
     canAddVideosDesc: "السماح لهذا الكابتن برفع الفيديوهات إلى المكتبة.",
     activeAccount: "مفعّل",
     inactiveAccount: "معطّل",
+    deletedAccount: "محذوف",
     resetPassword: "إعادة تعيين كلمة المرور",
     create: "إنشاء حساب",
     noAccounts: "لا توجد حسابات موظفين",

@@ -28,6 +28,7 @@ export default async function MasterPage() {
   const t = dict.master;
 
   const staff = await prisma.user.findMany({
+    where: { deletedAt: null },
     select: {
       id: true,
       displayName: true,
