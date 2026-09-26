@@ -29,7 +29,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { shiftGymDay, currentGymDay, GYM_DAY_START_HOUR } from "@/lib/gym-day";
-import { formatDate } from "@/lib/i18n/format";
+import { formatDate, formatNumber } from "@/lib/i18n/format";
 import type { Dictionary } from "@/lib/i18n";
 import type { Locale } from "@/lib/i18n/config";
 
@@ -47,6 +47,28 @@ export type ActivityRow = {
   details: string | null;
   createdAt: string;
 };
+
+/**
+ * Money moves are logged with raw amounts ("1500000"); group their digits for
+ * reading. Limited to these actions because elsewhere a run of digits can be
+ * a phone number or a year, which must stay as written.
+ */
+const MONEY_ACTIONS = new Set<ActivityAction>([
+  "CREATE_EXPENSE",
+  "UPDATE_EXPENSE",
+  "DELETE_EXPENSE",
+  "CREATE_DEBT",
+  "RECEIVE_DEBT_PAYMENT",
+  "DELETE_DEBT",
+  "RECEIVE_PAYMENT",
+  "CREATE_PLAN",
+  "UPDATE_PLAN",
+]);
+
+function readableDetails(log: ActivityRow, locale: Locale): string | null {
+  if (!log.details || !MONEY_ACTIONS.has(log.action)) return log.details;
+  return log.details.replace(/\d{4,}(?:\.\d+)?/g, (n) => formatNumber(Number(n), locale));
+}
 
 export function ActivityLog({
   rows,
@@ -234,8 +256,12 @@ export function ActivityLog({
                     </Badge>
                   </TableCell>
                   <TableCell className="truncate">{dict.activityActions[log.action]}</TableCell>
-                  <TableCell className="truncate text-muted-foreground" dir="auto" title={log.details ?? ""}>
-                    {log.details ?? "—"}
+                  <TableCell
+                    className="truncate text-muted-foreground"
+                    dir="auto"
+                    title={readableDetails(log, locale) ?? ""}
+                  >
+                    {readableDetails(log, locale) ?? "—"}
                   </TableCell>
                   <TableCell justify="center" className="whitespace-nowrap tabular-nums text-muted-foreground">
                     {time(log.createdAt)}
