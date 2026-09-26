@@ -15,7 +15,7 @@ export default async function ActivityPage({
 }: {
   searchParams: Promise<{ userId?: string; action?: string; day?: string }>;
 }) {
-  const me = await requireSection("MANAGEMENT");
+  await requireSection("MANAGEMENT");
   const { userId, action, day } = await searchParams;
   const locale = await getLocale();
   const dict = await getDictionary(locale);
@@ -29,13 +29,8 @@ export default async function ActivityPage({
   const validAction =
     action && action in actionLabels ? (action as ActivityAction) : undefined;
 
-  // What the master does is the master's business. Its entries, and its name
-  // in the filter, are kept out of a manager's view of the log.
-  const hideMaster = me.role === "MASTER" ? {} : { user: { role: { not: "MASTER" as const } } };
-
   const [users, logs] = await Promise.all([
     prisma.user.findMany({
-      where: me.role === "MASTER" ? {} : { role: { not: "MASTER" } },
       select: { id: true, displayName: true, role: true },
       orderBy: { displayName: "asc" },
     }),
@@ -44,7 +39,6 @@ export default async function ActivityPage({
         createdAt: { gte: from, lte: to },
         ...(userId ? { userId } : {}),
         ...(validAction ? { action: validAction } : {}),
-        ...hideMaster,
       },
       include: { user: { select: { displayName: true, role: true } } },
       orderBy: { createdAt: "desc" },
