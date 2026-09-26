@@ -1,5 +1,3 @@
-import "server-only";
-
 /**
  * The master's door, and where it is.
  *

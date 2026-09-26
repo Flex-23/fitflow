@@ -197,6 +197,7 @@ model Member {
   nutritionCourses NutritionCourse[]
   notifications    Notification[]
   gateLogs         GateLog[]
+  videoRatings     VideoRating[]
 
   @@index([name])
   @@index([cardWiegand])
@@ -314,8 +315,32 @@ model Video {
   updatedAt   DateTime @updatedAt
 
   exercises Exercise[]
+  ratings   VideoRating[]
 
   @@index([exerciseName])
+}
+
+/// A member's rating of one exercise video, given from the watch page.
+/// One per member per video — set once, never edited, and read-only after
+/// that; the star and the note are the member's own word, not a running
+/// conversation. Kept behind `videoRating.enabled` (see `lib/video-rating.ts`)
+/// so the whole feature can be switched off later without touching the data
+/// already collected.
+model VideoRating {
+  id       String @id @default(cuid())
+  videoId  String
+  video    Video  @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  memberId String
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  stars Int
+  // Optional, short by design — a line, not a review.
+  note  String? @db.VarChar(150)
+
+  createdAt DateTime @default(now())
+
+  @@unique([videoId, memberId])
+  @@index([videoId])
 }
 
 // ────────────────────────────── Training courses ──────────────────────────────

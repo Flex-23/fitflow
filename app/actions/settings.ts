@@ -5,6 +5,7 @@ import { requireMaster, requireSection } from "@/lib/auth/dal";
 import { setSetting } from "@/lib/settings";
 import { logActivity } from "@/lib/activity";
 import { GATE_ENABLED_KEY } from "@/lib/gate/enabled";
+import { VIDEO_RATING_ENABLED_KEY } from "@/lib/video-rating";
 import type { ActionState } from "@/lib/action-state";
 
 export async function updateSettings(
@@ -46,5 +47,26 @@ export async function setGateEnabled(enabled: boolean): Promise<{ ok: boolean }>
   revalidatePath("/registration");
   revalidatePath("/gate");
   revalidatePath("/members");
+  return { ok: true };
+}
+
+/**
+ * Turn a member's ability to rate exercise videos on or off.
+ *
+ * The master's decision alone, same reasoning as the gate: it changes what
+ * every member sees on the watch page. Turning it off never touches ratings
+ * already collected — it only stops new ones.
+ */
+export async function setVideoRatingEnabled(enabled: boolean): Promise<{ ok: boolean }> {
+  const user = await requireMaster();
+  await setSetting(VIDEO_RATING_ENABLED_KEY, enabled ? "true" : "false");
+
+  await logActivity({
+    userId: user.id,
+    action: "UPDATE_SETTINGS",
+    details: `video ratings ${enabled ? "enabled" : "disabled"}`,
+  });
+
+  revalidatePath("/settings");
   return { ok: true };
 }

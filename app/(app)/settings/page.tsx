@@ -16,7 +16,9 @@ import { WhatsAppLink } from "@/components/manager/whatsapp-link";
 import { Separator } from "@/components/ui/separator";
 import { getWhatsAppStatus } from "@/app/actions/whatsapp";
 import { isGateEnabled } from "@/lib/gate/enabled";
+import { isVideoRatingEnabled } from "@/lib/video-rating";
 import { GateToggle } from "@/components/master/gate-toggle";
+import { VideoRatingToggle } from "@/components/master/video-rating-toggle";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -31,10 +33,11 @@ export default async function SettingsPage() {
   const publicUrl = !isLocalUrl(appUrl);
   // The paired number is remembered in the database, so it shows even while
   // the socket is still coming back up after a restart.
-  const [linkedNumber, linkedAt, gateEnabled] = await Promise.all([
+  const [linkedNumber, linkedAt, gateEnabled, videoRatingEnabled] = await Promise.all([
     getSetting(WA_NUMBER_KEY, ""),
     getSetting(WA_LINKED_AT_KEY, ""),
     isGateEnabled(),
+    isVideoRatingEnabled(),
   ]);
 
   return (
@@ -47,6 +50,14 @@ export default async function SettingsPage() {
           <Card>
             <CardContent className="pt-6">
               <GateToggle enabled={gateEnabled} dict={dict} />
+            </CardContent>
+          </Card>
+        )}
+
+        {me.role === "MASTER" && (
+          <Card>
+            <CardContent className="pt-6">
+              <VideoRatingToggle enabled={videoRatingEnabled} dict={dict} />
             </CardContent>
           </Card>
         )}
