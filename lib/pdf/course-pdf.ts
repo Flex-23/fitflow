@@ -397,44 +397,47 @@ class DarkCourse {
 type CardItem = { label?: string; value: string; strong?: boolean };
 
 /**
- * The card at the top of every page: the day heading, then the member's
- * details beneath it, inside one box. There is no separate brand line — the
- * watermark carries the logo, and the day is the heading now.
+ * The top of every page: the member's details in a box, then the day heading
+ * on its own line beneath it. No brand line — the watermark carries the logo.
  */
 function pageTop(c: DarkCourse, dayLabel: string, items: CardItem[] | null) {
+  if (items?.length) memberCard(c, items);
+  if (dayLabel) {
+    const base = c.y - 18;
+    c.draw(dayLabel, FULL, base, { size: 17, color: LIME, align: "start" });
+    c.y = base - 12;
+  } else if (!items?.length) {
+    c.y -= 6;
+  }
+}
+
+function memberCard(c: DarkCourse, items: CardItem[]) {
   const size = 12;
   const strongSize = 14;
-  const headingSize = 17;
   const gap = 20;
   const pad = 12;
   const lineH = 20;
-  const headingH = 24;
   const labelGap = 4;
   const inner = CW - pad * 2;
 
-  // Flow the member items from the start edge, wrapping onto a new line when
-  // full. Empty for a template that has no member — then the card is just the
-  // day heading.
+  // Flow the items from the start edge, wrapping onto a new line when full.
   type Placed = { item: CardItem; lw: number; vw: number };
-  const lines: Placed[][] = [];
-  if (items?.length) {
-    lines.push([]);
-    let used = 0;
-    for (const item of items) {
-      const lw = item.label ? c.width(`${item.label}:`, size) + labelGap : 0;
-      const vw = c.width(item.value, item.strong ? strongSize : size);
-      let line = lines[lines.length - 1];
-      if (line.length && used + gap + lw + vw > inner) {
-        line = [];
-        lines.push(line);
-        used = 0;
-      }
-      used += (line.length ? gap : 0) + lw + vw;
-      line.push({ item, lw, vw });
+  const lines: Placed[][] = [[]];
+  let used = 0;
+  for (const item of items) {
+    const lw = item.label ? c.width(`${item.label}:`, size) + labelGap : 0;
+    const vw = c.width(item.value, item.strong ? strongSize : size);
+    let line = lines[lines.length - 1];
+    if (line.length && used + gap + lw + vw > inner) {
+      line = [];
+      lines.push(line);
+      used = 0;
     }
+    used += (line.length ? gap : 0) + lw + vw;
+    line.push({ item, lw, vw });
   }
 
-  const h = pad * 2 + headingH + lines.length * lineH - (lines.length ? 4 : 0);
+  const h = pad * 2 + lines.length * lineH - 6;
   const top = c.y;
   c.b.page.drawRectangle({
     x: CM,
@@ -446,17 +449,7 @@ function pageTop(c: DarkCourse, dayLabel: string, items: CardItem[] | null) {
     borderWidth: 0.6,
   });
 
-  // Day heading on the start edge (the right, in Arabic), inside the box.
-  const headBase = top - pad - headingSize + 3;
-  if (dayLabel) {
-    c.draw(dayLabel, { x: CM + pad, w: CW - pad * 2 }, headBase, {
-      size: headingSize,
-      color: LIME,
-      align: "start",
-    });
-  }
-
-  let base = top - pad - headingH - 6;
+  let base = top - pad - 12;
   for (const line of lines) {
     let offset = pad;
     for (const { item, lw, vw } of line) {
@@ -472,7 +465,7 @@ function pageTop(c: DarkCourse, dayLabel: string, items: CardItem[] | null) {
     }
     base -= lineH;
   }
-  c.y = top - h - 10;
+  c.y = top - h - 8;
 }
 
 // ───────────────────────── Training ─────────────────────────
