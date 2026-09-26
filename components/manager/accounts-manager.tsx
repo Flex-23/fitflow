@@ -189,7 +189,18 @@ export function AccountsManager({
               {accounts.map((a, i) => {
                 const Icon = roleIcon[a.role];
                 return (
-                  <TableRow key={a.id} className={cn(!a.isActive && "opacity-60")}>
+                  <TableRow
+                    key={a.id}
+                    className={cn(
+                      // The name column wraps to a second line (the "created
+                      // on" date); top-aligning every cell keeps its first
+                      // line level with the single-line columns next to it,
+                      // instead of each cell centering independently and the
+                      // text drifting out of step.
+                      "[&>td]:align-top",
+                      !a.isActive && "opacity-60"
+                    )}
+                  >
                     <TableCell justify="center" className="text-xs font-semibold text-muted-foreground">
                       {i + 1}
                     </TableCell>
