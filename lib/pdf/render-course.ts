@@ -49,14 +49,14 @@ export async function renderTrainingPdf(
     courseToken: course.shareToken,
     labels: {
       programTitle: dict.captain.trainingTitle,
-      reps: dict.captain.reps,
-      superset: dict.captain.superset,
+      exerciseColumn: dict.captain.pdfExerciseColumn,
+      supersetColumn: dict.captain.pdfSupersetColumn,
       phone: dict.common.phone,
       age: dict.reception.age,
       heightWeight: dict.captain.heightWeight,
-      period: dict.captain.period,
+      start: dict.captain.pdfStart,
+      end: dict.captain.pdfEnd,
       gender: dict.reception.gender,
-      measurements: dict.reception.extraMeasurements,
     },
     member: m
       ? {
