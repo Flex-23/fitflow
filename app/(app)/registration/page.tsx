@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 import { requireSection } from "@/lib/auth/dal";
+import { isGateEnabled } from "@/lib/gate/enabled";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -17,10 +18,13 @@ export default async function RegistrationPage() {
   const locale = await getLocale();
   const dict = await getDictionary(locale);
 
-  const plansRaw = await prisma.subscriptionPlan.findMany({
-    where: { isActive: true },
-    orderBy: { durationDays: "asc" },
-  });
+  const [plansRaw, gateEnabled] = await Promise.all([
+    prisma.subscriptionPlan.findMany({
+      where: { isActive: true },
+      orderBy: { durationDays: "asc" },
+    }),
+    isGateEnabled(),
+  ]);
   const plans = plansRaw.map((p) => ({
     id: p.id,
     name: p.name,
@@ -49,7 +53,12 @@ export default async function RegistrationPage() {
           )}
         </Card>
       )}
-      <RegistrationForm plans={plans} dict={dict} locale={locale} />
+      <RegistrationForm
+        plans={plans}
+        dict={dict}
+        locale={locale}
+        gateEnabled={gateEnabled}
+      />
     </div>
   );
 }

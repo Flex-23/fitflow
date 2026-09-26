@@ -49,6 +49,8 @@ export type ShellUser = {
   canAddVideos: boolean;
   /** The sections this person holds, worked out once on the server. */
   sections: Section[];
+  /** False when this gym has no turnstile, which hides the gate entirely. */
+  gateEnabled: boolean;
 };
 
 export function AppShell({
@@ -88,7 +90,9 @@ export function AppShell({
         { href: "/expired", label: n.expired, icon: CalendarX2 },
         { href: "/deferred", label: n.deferred, icon: Wallet },
         { href: "/members", label: n.members, icon: Users },
-        { href: "/gate", label: n.gate, icon: DoorOpen },
+        ...(user.gateEnabled
+          ? [{ href: "/gate", label: n.gate, icon: DoorOpen }]
+          : []),
       ],
     },
     has("COACHING") && {

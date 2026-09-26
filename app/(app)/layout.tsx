@@ -6,6 +6,7 @@ import { ensureDailyBackup } from "@/lib/backup";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
 import { getNotificationCount } from "@/lib/notifications-live";
+import { isGateEnabled } from "@/lib/gate/enabled";
 import { AppShell } from "@/components/layout/app-shell";
 import { STAFF_MANIFEST } from "@/lib/pwa";
 
@@ -30,6 +31,7 @@ export default async function AppLayout({
   // Both of these belong to the management section, not to a job title.
   const manages = hasSection(user, "MANAGEMENT");
   const notificationCount = manages ? await getNotificationCount() : 0;
+  const gateEnabled = await isGateEnabled();
 
   // First visit of the day writes a snapshot; runs after the response so it
   // never slows a page down.
@@ -42,6 +44,7 @@ export default async function AppLayout({
         role: user.role,
         canAddVideos: user.canAddVideos,
         sections: sectionsFor(user),
+        gateEnabled,
       }}
       dict={dict}
       locale={locale}

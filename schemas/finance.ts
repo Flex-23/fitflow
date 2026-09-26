@@ -18,8 +18,15 @@ export const EXPENSE_CATEGORIES = [
 
 export type ExpenseCategoryKey = (typeof EXPENSE_CATEGORIES)[number];
 
+/**
+ * A spend.
+ *
+ * There is no "what was it for" field: the category is what it was for. The
+ * one case that needs words is "other", and the note already exists for
+ * exactly that — so the note carries it, and the list shows the note in
+ * place of a category name.
+ */
 export const expenseSchema = z.object({
-  title: z.string().trim().min(2).max(120),
   amount: z.coerce.number().positive().max(1_000_000_000),
   category: z.enum(EXPENSE_CATEGORIES),
   note: optionalText(500),
@@ -47,6 +54,9 @@ export const debtPaymentSchema = z.object({
   amount: z.coerce.number().positive().max(1_000_000_000),
   note: optionalText(200),
 });
+
+/** The same thing, aimed at a row that already exists. */
+export const expenseUpdateSchema = expenseSchema.extend({ id: z.string().min(1) });
 
 export type ExpenseInput = z.infer<typeof expenseSchema>;
 export type DebtInput = z.infer<typeof debtSchema>;

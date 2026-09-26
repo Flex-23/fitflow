@@ -129,7 +129,9 @@ export function DayDetailDialog({
                       <Icon className={cn("size-4", s.tone)} />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{mv.label}</p>
+                      <p className="truncate text-sm font-medium">
+                        {mv.label ?? (mv.category ? t.categories[mv.category] : "—")}
+                      </p>
                       <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <Badge variant={s.badge} className="px-1.5 py-0 text-[10px]">
                           {label[mv.kind]}

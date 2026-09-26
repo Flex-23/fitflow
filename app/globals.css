@@ -167,6 +167,14 @@
    of filling the gutter edge to edge.
    ============================================================================ */
 
+/* A list of suggestions is a layer over the field that opened it, and on a
+   dark palette a plain popover background reads as more of the same field.
+   A wash of the brand colour separates the two at a glance. */
+.suggestion-list {
+  background-color: color-mix(in oklch, var(--brand) 9%, var(--popover));
+  border-color: color-mix(in oklch, var(--brand) 32%, transparent);
+}
+
 /* The browser draws the date picker's calendar button itself, in black, and
    on this palette that is a dark smudge on a dark field. Telling the input
    its colour scheme is dark makes the browser draw a light one; the filter

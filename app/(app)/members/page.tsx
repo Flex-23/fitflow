@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { requireSection } from "@/lib/auth/dal";
+import { isGateEnabled } from "@/lib/gate/enabled";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -35,7 +36,7 @@ export default async function MembersPage({
     : undefined;
   const current = pageFrom(page);
 
-  const [total, members, plansRaw] = await Promise.all([
+  const [total, members, plansRaw, gateEnabled] = await Promise.all([
     prisma.member.count({ where }),
     prisma.member.findMany({
       where,
@@ -54,6 +55,7 @@ export default async function MembersPage({
       where: { isActive: true },
       orderBy: { durationDays: "asc" },
     }),
+    isGateEnabled(),
   ]);
   const paging = pageInfo(current, total);
 
@@ -119,7 +121,14 @@ export default async function MembersPage({
         title={dict.reception.membersTitle}
         description={dict.reception.membersSubtitle}
       />
-      <MembersTable rows={rows} plans={plans} paging={paging} dict={dict} locale={locale} />
+      <MembersTable
+        rows={rows}
+        plans={plans}
+        paging={paging}
+        dict={dict}
+        locale={locale}
+        gateEnabled={gateEnabled}
+      />
     </div>
   );
 }

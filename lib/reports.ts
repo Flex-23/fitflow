@@ -163,8 +163,16 @@ export async function getReport(from: Date, to: Date): Promise<Report> {
 export type Movement = {
   id: string;
   kind: "subscription" | "debt" | "expense";
-  /** Who the money came from, or what it was spent on. */
-  label: string;
+  /**
+   * Who the money came from, or what it was spent on.
+   *
+   * Null for an expense whose category already describes it — rent is rent.
+   * Only an "other" spend carries words of its own, and `category` below is
+   * what a screen names instead, in its own language.
+   */
+  label: string | null;
+  /** Set for expenses, so a list can name the category rather than its key. */
+  category?: ExpenseCategoryKey;
   detail: string | null;
   amount: number;
   at: string;
@@ -227,7 +235,10 @@ export async function getMovements(from: Date, to: Date): Promise<Movement[]> {
       id: e.id,
       kind: "expense" as const,
       label: e.title,
-      detail: e.note ?? e.category,
+      category: e.category as ExpenseCategoryKey,
+      // The note already became the title for an "other" spend; showing it
+      // twice on one line says nothing the second time.
+      detail: e.note === e.title ? null : e.note,
       amount: toNumber(e.amount),
       at: e.spentAt.toISOString(),
     })),

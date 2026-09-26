@@ -216,7 +216,9 @@ export default async function SummaryPage() {
                     )}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{m.label}</p>
+                    <p className="truncate text-sm font-medium">
+                      {m.label ?? (m.category ? dict.finance.categories[m.category] : "—")}
+                    </p>
                     {m.detail && (
                       <p className="truncate text-xs text-muted-foreground">{m.detail}</p>
                     )}

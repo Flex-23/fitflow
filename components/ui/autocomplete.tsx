@@ -90,7 +90,7 @@ export function Autocomplete<T>({
         )}
       />
       {showList && (
-        <ul className="scroll-quiet absolute z-30 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-border bg-popover p-1 shadow-lg">
+        <ul className="suggestion-list scroll-quiet absolute z-30 mt-1 max-h-56 w-full overflow-auto rounded-lg border p-1 shadow-xl">
           {items.map((it) => (
             <li key={getKey(it)}>
               <button
@@ -100,7 +100,7 @@ export function Autocomplete<T>({
                   onSelect(it);
                   setOpen(false);
                 }}
-                className="flex w-full items-center rounded-md px-2 py-1.5 text-start text-sm hover:bg-accent"
+                className="flex w-full items-center rounded-md px-2 py-1.5 text-start text-sm transition-colors hover:bg-brand/20 hover:text-foreground"
               >
                 {getLabel(it)}
               </button>

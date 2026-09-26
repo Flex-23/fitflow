@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useActionState } from "react";
 import { toast } from "sonner";
-import { Plus, Receipt, Trash2, Wallet, Check, X, Tag, Info } from "lucide-react";
+import { Plus, Receipt, Trash2, Wallet, Check, X, Tag, Info, Pencil } from "lucide-react";
 import { MonthPicker } from "@/components/ui/month-picker";
-import { createExpense, deleteExpense } from "@/app/actions/expenses";
+import { createExpense, updateExpense, deleteExpense } from "@/app/actions/expenses";
 import { emptyState } from "@/lib/action-state";
 import { EXPENSE_CATEGORIES, type ExpenseCategoryKey } from "@/schemas/finance";
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,7 @@ import type { Locale } from "@/lib/i18n/config";
 
 export type ExpenseRow = {
   id: string;
-  title: string;
+  title: string | null;
   amount: number;
   category: ExpenseCategoryKey;
   note: string | null;
@@ -75,6 +75,7 @@ export function ExpensesManager({
 }) {
   const t = dict.finance;
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<ExpenseRow | null>(null);
   const money = (n: number) => formatMoney(n, locale, dict.common.currency);
   const monthTotal = useMemo(() => rows.reduce((a, r) => a + r.amount, 0), [rows]);
   const topCategory = useMemo(() => {
@@ -142,8 +143,8 @@ export function ExpensesManager({
                 <TableHead justify="center" className="w-[5%]">#</TableHead>
                 <TableHead className="w-[30%]">{t.expenseTitle}</TableHead>
                 <TableHead className="w-[14%]">{t.expenseCategory}</TableHead>
-                <TableHead className="w-[17%]">{t.expenseAmount}</TableHead>
-                <TableHead className="w-[17%]">{t.expenseDate}</TableHead>
+<TableHead justify="end" className="w-[17%]">{t.expenseAmount}</TableHead>
+<TableHead justify="center" className="w-[17%]">{t.expenseDate}</TableHead>
                 <TableHead justify="end" className="w-[17%]">{dict.common.actions}</TableHead>
               </TableRow>
             </TableHeader>
@@ -154,8 +155,10 @@ export function ExpensesManager({
                     {i + 1}
                   </TableCell>
                   <TableCell>
-                    <div className="truncate font-medium">{e.title}</div>
-                    {e.note && (
+                    <div className="truncate font-medium">
+                      {e.title ?? t.categories[e.category]}
+                    </div>
+                    {e.note && e.note !== e.title && (
                       <div className="truncate text-xs text-muted-foreground">{e.note}</div>
                     )}
                   </TableCell>
@@ -165,14 +168,25 @@ export function ExpensesManager({
                       {t.categories[e.category]}
                     </Badge>
                   </TableCell>
-                  <TableCell className="whitespace-nowrap font-bold text-destructive">
+                  <TableCell justify="end" className="whitespace-nowrap font-bold text-destructive">
                     {money(e.amount)}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                  <TableCell justify="center" className="whitespace-nowrap text-sm text-muted-foreground">
                     {formatDate(e.spentAt, locale)}
                   </TableCell>
                   <TableCell justify="end">
-                    <DeleteExpense id={e.id} dict={dict} />
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        title={dict.common.edit}
+                        aria-label={dict.common.edit}
+                        onClick={() => setEditing(e)}
+                      >
+                        <Pencil className="size-4" />
+                      </Button>
+                      <DeleteExpense id={e.id} dict={dict} />
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -183,6 +197,18 @@ export function ExpensesManager({
 
       <Dialog open={open} onClose={() => setOpen(false)} title={t.newExpense}>
         <ExpenseForm dict={dict} monthStart={monthStart} onDone={() => setOpen(false)} />
+      </Dialog>
+
+      <Dialog open={editing !== null} onClose={() => setEditing(null)} title={t.editExpense}>
+        {editing && (
+          <ExpenseForm
+            key={editing.id}
+            dict={dict}
+            monthStart={monthStart}
+            expense={editing}
+            onDone={() => setEditing(null)}
+          />
+        )}
       </Dialog>
     </div>
   );
@@ -227,17 +253,33 @@ function DeleteExpense({ id, dict }: { id: string; dict: Dictionary }) {
   );
 }
 
+/**
+ * Record a spend, or correct one.
+ *
+ * The same form both ways: an expense that already exists arrives filled in.
+ * There is no "what was it for" box — the category answers that, and the one
+ * category that does not answer it is "other", which the note covers. The
+ * server lifts that note into the title.
+ */
 function ExpenseForm({
   dict,
   monthStart,
+  expense,
   onDone,
 }: {
   dict: Dictionary;
   monthStart: string;
+  /** Present when correcting an entry rather than adding one. */
+  expense?: ExpenseRow;
   onDone: () => void;
 }) {
   const t = dict.finance;
-  const [state, action, pending] = useActionState(createExpense, emptyState);
+  const editing = expense !== undefined;
+  const [category, setCategory] = useState<ExpenseCategoryKey>(expense?.category ?? "OTHER");
+  const [state, action, pending] = useActionState(
+    editing ? updateExpense : createExpense,
+    emptyState
+  );
   // Default to today, or to the 1st when browsing a past month.
   const today = useMemo(() => {
     const now = new Date();
@@ -258,22 +300,31 @@ function ExpenseForm({
 
   return (
     <form action={action} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="title">{t.expenseTitle}</Label>
-        <Input id="title" name="title" required autoFocus />
-        {err("title") && <p className="text-xs text-destructive">{dict.reception.invalidField}</p>}
-      </div>
+      {editing && <input type="hidden" name="id" value={expense.id} />}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
           <Label htmlFor="amount">{t.expenseAmount}</Label>
-          <MoneyInput id="amount" name="amount" min={1} required suffix={dict.common.currency} />
+          <MoneyInput
+            id="amount"
+            name="amount"
+            min={1}
+            required
+            defaultValue={expense?.amount}
+            suffix={dict.common.currency}
+          />
           {err("amount") && (
             <p className="text-xs text-destructive">{dict.reception.invalidField}</p>
           )}
         </div>
         <div className="space-y-2">
           <Label htmlFor="category">{t.expenseCategory}</Label>
-          <Select id="category" name="category" defaultValue="OTHER" required>
+          <Select
+            id="category"
+            name="category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value as ExpenseCategoryKey)}
+            required
+          >
             {EXPENSE_CATEGORIES.map((c) => (
               <option key={c} value={c}>
                 {t.categories[c]}
@@ -284,16 +335,34 @@ function ExpenseForm({
       </div>
       <div className="space-y-2">
         <Label htmlFor="spentAt">{t.expenseDate}</Label>
-        <Input id="spentAt" name="spentAt" type="date" defaultValue={today} dir="ltr" />
+        <Input
+          id="spentAt"
+          name="spentAt"
+          type="date"
+          defaultValue={expense ? expense.spentAt.slice(0, 10) : today}
+          dir="ltr"
+        />
       </div>
       <div className="space-y-2">
+        {/* For "other" this is the only place the reason can go, so it is
+            asked for rather than offered. */}
         <Label htmlFor="note">
-          {t.expenseNote}{" "}
-          <span className="text-xs font-normal text-muted-foreground">
-            ({dict.common.optional})
-          </span>
+          {category === "OTHER" ? t.expenseReason : t.expenseNote}{" "}
+          {category !== "OTHER" && (
+            <span className="text-xs font-normal text-muted-foreground">
+              ({dict.common.optional})
+            </span>
+          )}
         </Label>
-        <Textarea id="note" name="note" rows={2} />
+        <Textarea
+          id="note"
+          name="note"
+          rows={2}
+          autoFocus
+          required={category === "OTHER"}
+          defaultValue={expense?.note ?? ""}
+          placeholder={category === "OTHER" ? t.expenseReasonHint : undefined}
+        />
       </div>
       <div className="flex justify-end gap-2 pt-1">
         <Button type="button" variant="ghost" onClick={onDone}>

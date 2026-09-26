@@ -47,10 +47,13 @@ export function RegistrationForm({
   plans,
   dict,
   locale,
+  gateEnabled,
 }: {
   plans: PlanOption[];
   dict: Dictionary;
   locale: Locale;
+  /** No turnstile, no card to read — so the field is not offered at all. */
+  gateEnabled: boolean;
 }) {
   const t = dict.reception;
   const formRef = useRef<HTMLFormElement>(null);
@@ -158,6 +161,7 @@ export function RegistrationForm({
                 />
               </IconInput>
             </Field>
+            {gateEnabled && (
             <Field
               label={t.cardNumber}
               htmlFor="cardNumber"
@@ -167,6 +171,7 @@ export function RegistrationForm({
               <CardNumberInput placeholder={t.cardPlaceholder} />
               <p className="text-xs text-muted-foreground">{t.cardHint}</p>
             </Field>
+            )}
             <div className="grid grid-cols-3 gap-3 sm:col-span-2">
               <Field label={t.age} htmlFor="age" error={err("age")}>
                 <IconInput icon={Cake}>

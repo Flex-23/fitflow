@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { requireSection } from "@/lib/auth/dal";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { getDictionary } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { safeGymDay, gymDayRange, currentGymDay } from "@/lib/gym-day";
 import { getSetting } from "@/lib/settings";
+import { isGateEnabled } from "@/lib/gate/enabled";
 import {
   gateHealth,
   GATE_HEARTBEAT_KEY,
@@ -24,6 +26,8 @@ export default async function GatePage({
   // Reception sits next to the turnstile and needs to see why someone was
   // refused; a manager holding the reception section passes too.
   await requireSection("RECEPTION");
+  // Hiding the link is not enough; a gym with no turnstile has no such page.
+  if (!(await isGateEnabled())) notFound();
   const { day } = await searchParams;
   const locale = await getLocale();
   const dict = await getDictionary(locale);

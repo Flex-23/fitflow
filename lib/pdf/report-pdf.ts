@@ -145,7 +145,9 @@ export async function buildReportPdf(input: ReportPdfInput): Promise<Uint8Array>
       const out = m.kind === "expense";
       cell(b, cols[0], time.format(new Date(m.at)), MUTED);
       cell(b, cols[1], label[m.kind], INK);
-      cell(b, cols[2], m.detail ? `${m.label} — ${m.detail}` : m.label, INK, 40);
+      // An expense with no words of its own is named by its category.
+      const name = m.label ?? (m.category ? t.categories[m.category] : "—");
+      cell(b, cols[2], m.detail ? `${name} — ${m.detail}` : name, INK, 40);
       cell(b, cols[3], `${out ? "−" : "+"} ${money(m.amount)}`, out ? RED : GREEN);
       b.y -= 15;
     }

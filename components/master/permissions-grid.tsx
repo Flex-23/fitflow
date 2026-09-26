@@ -4,9 +4,10 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Check, Loader2, ShieldCheck } from "lucide-react";
 import type { Section } from "@prisma/client";
+
 import { setManagerSections } from "@/app/actions/master";
 import { ALL_SECTIONS } from "@/lib/auth/rbac";
-import type { StaffRow } from "@/lib/master-overview";
+import type { Role } from "@prisma/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,19 @@ import { formatDate } from "@/lib/i18n/format";
 import type { Dictionary } from "@/lib/i18n";
 import type { Locale } from "@/lib/i18n/config";
 import { cn } from "@/lib/utils";
+
+/** One staff account, as the master screen lists it. */
+export type StaffRow = {
+  id: string;
+  displayName: string;
+  username: string;
+  role: Role;
+  isActive: boolean;
+  canAddVideos: boolean;
+  sections: Section[];
+  createdAt: string;
+  isSelf: boolean;
+};
 
 /**
  * What each manager may open, as a row of switches per manager.

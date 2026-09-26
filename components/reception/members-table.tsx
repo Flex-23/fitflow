@@ -105,12 +105,15 @@ export function MembersTable({
   paging,
   dict,
   locale,
+  gateEnabled,
 }: {
   rows: MemberRow[];
   plans: PlanOption[];
   paging: PageInfo;
   dict: Dictionary;
   locale: Locale;
+  /** No turnstile, no card number to show anywhere. */
+  gateEnabled: boolean;
 }) {
   const t = dict.reception;
   // Track the id (not the row) so the dialog re-reads fresh data after the
@@ -225,13 +228,16 @@ export function MembersTable({
         open={mode !== null && selected !== null}
         onClose={close}
         title={title}
-        className={mode === "details" || mode === "edit" ? "max-w-2xl" : "max-w-lg"}
+        className={
+          mode === "details" ? "max-w-5xl" : mode === "edit" ? "max-w-2xl" : "max-w-lg"
+        }
       >
         {selected && mode === "details" && (
           <MemberDetails
             member={selected}
             dict={dict}
             locale={locale}
+            gateEnabled={gateEnabled}
             onEdit={() => setMode("edit")}
             onRenew={() => setMode("renew")}
             onDelete={() => setMode("delete")}
@@ -285,6 +291,7 @@ function MemberDetails({
   member,
   dict,
   locale,
+  gateEnabled,
   onEdit,
   onRenew,
   onDelete,
@@ -292,6 +299,7 @@ function MemberDetails({
   member: MemberRow;
   dict: Dictionary;
   locale: Locale;
+  gateEnabled: boolean;
   onEdit: () => void;
   onRenew: () => void;
   onDelete: () => void;
@@ -306,7 +314,7 @@ function MemberDetails({
   return (
     <div className="space-y-5">
       {/* Identity — full row so long names never get clipped */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 p-4">
         <div className="grid size-14 shrink-0 place-items-center rounded-full bg-brand/15 text-brand">
           <UserRound className="size-7" />
         </div>
@@ -323,18 +331,26 @@ function MemberDetails({
               <Phone className="size-3.5" />
               <span dir="ltr" className="tabular-nums">{member.phone}</span>
             </span>
-            <span className="flex items-center gap-1.5">
-              <IdCard className="size-3.5" />
-              {member.cardNumber ? (
-                <span dir="ltr" className="tabular-nums">{member.cardNumber}</span>
-              ) : (
-                <span className="text-xs">{t.noCard}</span>
-              )}
-            </span>
+            {gateEnabled && (
+              <span className="flex items-center gap-1.5">
+                <IdCard className="size-3.5" />
+                {member.cardNumber ? (
+                  <span dir="ltr" className="tabular-nums">
+                    {member.cardNumber}
+                  </span>
+                ) : (
+                  <span className="text-xs">{t.noCard}</span>
+                )}
+              </span>
+            )}
           </p>
         </div>
       </div>
 
+      {/* Two columns on a wide screen: who they are on one side, what they
+          are paying for on the other. Stacked on a phone, in that order. */}
+      <div className="grid items-start gap-5 lg:grid-cols-2">
+        <div className="space-y-4">
       {/* Personal stats */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Stat icon={Cake} label={t.age} value={member.age ?? "—"} />
@@ -357,7 +373,7 @@ function MemberDetails({
         </div>
       )}
 
-      <Separator />
+        </div>
 
       {/* Subscription */}
       <div className="space-y-3">
@@ -456,6 +472,9 @@ function MemberDetails({
           </div>
         )}
       </div>
+      </div>
+
+      <Separator />
 
       <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">

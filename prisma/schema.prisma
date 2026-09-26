@@ -95,6 +95,7 @@ enum ActivityAction {
   UPDATE_USER
   TOGGLE_VIDEO_PERMISSION
   CREATE_EXPENSE
+  UPDATE_EXPENSE
   DELETE_EXPENSE
   CREATE_DEBT
   RECEIVE_DEBT_PAYMENT
@@ -105,6 +106,7 @@ enum ActivityAction {
   SEND_PORTAL_LINK
   REVOKE_PORTAL_ACCESS
   SET_PERMISSIONS
+  UPDATE_SETTINGS
 }
 
 enum NotificationType {
@@ -555,7 +557,10 @@ model GateLog {
 /// Money the gym spends: rent, salaries, equipment, bills…
 model Expense {
   id       String          @id @default(cuid())
-  title    String
+  /// What it was for, in words. Only "other" spends need one — every other
+  /// category is its own description — so this is usually null and the list
+  /// falls back to the category name.
+  title    String?
   amount   Decimal         @db.Decimal(12, 2)
   category ExpenseCategory @default(OTHER)
   note     String?         @db.Text

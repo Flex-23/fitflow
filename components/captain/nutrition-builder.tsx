@@ -12,7 +12,6 @@ import type { Locale } from "@/lib/i18n/config";
 import { CourseDelivery, reportCourseLink } from "@/components/captain/course-delivery";
 import { Autocomplete } from "@/components/ui/autocomplete";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { Dictionary } from "@/lib/i18n";
@@ -22,11 +21,10 @@ const INITIAL_DAYS = 5;
 const uid = () => crypto.randomUUID();
 
 type Meal = { key: string; text: string };
-type Day = { key: string; label: string; meals: Meal[] };
+type Day = { key: string; meals: Meal[] };
 
 const newDay = (): Day => ({
   key: uid(),
-  label: "",
   meals: Array.from({ length: MEALS_PER_DAY }, () => ({ key: uid(), text: "" })),
 });
 
@@ -68,13 +66,11 @@ export function NutritionBuilder({
           : d
       )
     );
-  const updateLabel = (di: number, label: string) =>
-    setDays((prev) => prev.map((d, i) => (i === di ? { ...d, label } : d)));
 
   function save() {
     if (!member) return toast.error(t.noMemberSelected);
     const payloadDays = days.map((d, i) => ({
-      label: d.label.trim() || `${t.day} ${i + 1}`,
+      label: `${t.day} ${i + 1}`,
       meals: d.meals.map((m) => m.text.trim()),
     }));
     startSaving(async () => {
@@ -124,12 +120,9 @@ export function NutritionBuilder({
                 <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-brand/15 text-sm font-bold text-brand">
                   {di + 1}
                 </span>
-                <Input
-                  value={day.label}
-                  onChange={(e) => updateLabel(di, e.target.value)}
-                  placeholder={`${t.day} ${di + 1}`}
-                  className="max-w-xs font-medium"
-                />
+                <span className="font-medium">
+                  {t.day} {di + 1}
+                </span>
               </div>
             </CardHeader>
             <CardContent className="grid gap-2 sm:grid-cols-2">

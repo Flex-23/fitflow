@@ -15,11 +15,13 @@ import { SettingsForm } from "@/components/manager/settings-form";
 import { WhatsAppLink } from "@/components/manager/whatsapp-link";
 import { Separator } from "@/components/ui/separator";
 import { getWhatsAppStatus } from "@/app/actions/whatsapp";
+import { isGateEnabled } from "@/lib/gate/enabled";
+import { GateToggle } from "@/components/master/gate-toggle";
 
 export const metadata: Metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
-  await requireSection("MANAGEMENT");
+  const me = await requireSection("MANAGEMENT");
   const locale = await getLocale();
   const dict = await getDictionary(locale);
   const t = dict.manager;
@@ -29,15 +31,26 @@ export default async function SettingsPage() {
   const publicUrl = !isLocalUrl(appUrl);
   // The paired number is remembered in the database, so it shows even while
   // the socket is still coming back up after a restart.
-  const [linkedNumber, linkedAt] = await Promise.all([
+  const [linkedNumber, linkedAt, gateEnabled] = await Promise.all([
     getSetting(WA_NUMBER_KEY, ""),
     getSetting(WA_LINKED_AT_KEY, ""),
+    isGateEnabled(),
   ]);
 
   return (
     <div>
       <PageHeader title={t.settingsTitle} description={t.settingsSubtitle} />
       <div className="grid max-w-3xl gap-6">
+        {/* Whether this gym has a turnstile at all. The owner decides, because
+            the answer removes a whole section from everyone else's screen. */}
+        {me.role === "MASTER" && (
+          <Card>
+            <CardContent className="pt-6">
+              <GateToggle enabled={gateEnabled} dict={dict} />
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle className="text-base">{dict.nav.notifications}</CardTitle>
