@@ -7,6 +7,7 @@ import { syncSubscriptions } from "@/lib/subscription-sync";
 import { getExpiringSoonThreshold } from "@/lib/settings";
 import { PageHeader } from "@/components/layout/page-header";
 import { ActiveSubscriptions } from "@/components/reception/active-subscriptions";
+import { phoneSearchTerm } from "@/lib/phone";
 
 export const metadata: Metadata = { title: "Active subscriptions" };
 
@@ -27,7 +28,7 @@ export default async function ActivePage({
     where: {
       status: { in: ["ACTIVE", "FROZEN"] },
       ...(q
-        ? { member: { OR: [{ name: { contains: q, mode: "insensitive" as const } }, { phone: { contains: q, mode: "insensitive" as const } }] } }
+        ? { member: { OR: [{ name: { contains: q, mode: "insensitive" as const } }, { phone: { contains: phoneSearchTerm(q) ?? q, mode: "insensitive" as const } }] } }
         : {}),
     },
     include: { member: true },

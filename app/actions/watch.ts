@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 import { createMemberSession, clearMemberSession } from "@/lib/member-session";
-import { normalizePhone } from "@/lib/whatsapp";
+import { canonicalPhone } from "@/lib/phone";
 import {
   clientKey,
   lockedFor,
@@ -55,41 +55,33 @@ export async function endWatchSession() {
 }
 
 /**
- * Match on the digits of the phone number so a member typing +964… or using
- * spaces/dashes still resolves to their record.
+ * Members are stored with one canonical phone (lib/phone.ts), so whatever way
+ * the member types it — +964…, spaces, dashes, no leading zero — it reduces
+ * to the same string and is looked up exactly. No partial matching: that
+ * could land on a different member who shares the last digits.
  */
 async function findActiveMemberByPhone(
   phone: string
 ): Promise<{ id: string; name: string } | null> {
   const now = new Date();
-  const digits = normalizePhone(phone);
-  if (digits.length < 6) return null;
+  const canonical = canonicalPhone(phone);
+  if (canonical.length < 8) return null;
 
-  const exact = await prisma.member.findUnique({
-    where: { phone },
+  const member = await prisma.member.findUnique({
+    where: { phone: canonical },
     select: { id: true, name: true },
   });
+  if (!member) return null;
 
-  const candidates = exact
-    ? [exact]
-    : await prisma.member.findMany({
-        where: { phone: { contains: digits.slice(-9), mode: "insensitive" as const } },
-        select: { id: true, name: true, phone: true },
-        take: 5,
-      });
-
-  for (const c of candidates) {
-    const active = await prisma.subscription.count({
-      where: {
-        memberId: c.id,
-        status: "ACTIVE",
-        startDate: { lte: now },
-        endDate: { gte: now },
-      },
-    });
-    if (active > 0) return { id: c.id, name: c.name };
-  }
-  return null;
+  const active = await prisma.subscription.count({
+    where: {
+      memberId: member.id,
+      status: "ACTIVE",
+      startDate: { lte: now },
+      endDate: { gte: now },
+    },
+  });
+  return active > 0 ? member : null;
 }
 
 /**

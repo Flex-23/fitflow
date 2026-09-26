@@ -9,6 +9,7 @@ import { DAY_MS } from "@/lib/action-state";
 import { pageFrom, pageSlice, pageInfo } from "@/lib/pagination";
 import { PageHeader } from "@/components/layout/page-header";
 import { MembersArchive } from "@/components/manager/members-archive";
+import { phoneSearchTerm } from "@/lib/phone";
 
 export const metadata: Metadata = { title: "Members archive" };
 
@@ -41,7 +42,7 @@ export default async function ArchivePage({
     prisma.member.findMany({
       where: {
         ...(q
-          ? { OR: [{ name: { contains: q, mode: "insensitive" as const } }, { phone: { contains: q, mode: "insensitive" as const } }] }
+          ? { OR: [{ name: { contains: q, mode: "insensitive" as const } }, { phone: { contains: phoneSearchTerm(q) ?? q, mode: "insensitive" as const } }] }
           : {}),
         // Nobody with a subscription still running (or queued) is "away".
         subscriptions: {

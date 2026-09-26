@@ -9,13 +9,14 @@ import { logActivity } from "@/lib/activity";
 import { trainingCourseSchema } from "@/schemas/course";
 import { purgeExpiredCourses, twoMonthsFromNow } from "@/lib/courses";
 import { sendCourseLink, type PortalLinkResult } from "@/lib/portal-delivery";
+import { phoneSearchTerm } from "@/lib/phone";
 
 export async function searchMembers(query: string) {
   await requireSection("COACHING");
   const q = query.trim();
   if (!q) return [];
   return prisma.member.findMany({
-    where: { OR: [{ name: { contains: q, mode: "insensitive" as const } }, { phone: { contains: q, mode: "insensitive" as const } }] },
+    where: { OR: [{ name: { contains: q, mode: "insensitive" as const } }, { phone: { contains: phoneSearchTerm(q) ?? q, mode: "insensitive" as const } }] },
     select: { id: true, name: true, phone: true },
     take: 8,
     orderBy: { name: "asc" },

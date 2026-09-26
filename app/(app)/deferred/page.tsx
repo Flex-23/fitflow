@@ -7,6 +7,7 @@ import { syncSubscriptions } from "@/lib/subscription-sync";
 import { toNumber, sum, remainingBalance } from "@/lib/money";
 import { PageHeader } from "@/components/layout/page-header";
 import { DeferredPayments } from "@/components/reception/deferred-payments";
+import { phoneSearchTerm } from "@/lib/phone";
 
 export const metadata: Metadata = { title: "Deferred payments" };
 
@@ -30,7 +31,7 @@ export default async function DeferredPage({
       method: "DEFERRED",
       status: { in: ["ACTIVE", "EXPIRED", "FROZEN"] },
       ...(q
-        ? { member: { OR: [{ name: { contains: q, mode: "insensitive" as const } }, { phone: { contains: q, mode: "insensitive" as const } }] } }
+        ? { member: { OR: [{ name: { contains: q, mode: "insensitive" as const } }, { phone: { contains: phoneSearchTerm(q) ?? q, mode: "insensitive" as const } }] } }
         : {}),
     },
     include: {

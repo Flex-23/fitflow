@@ -8,6 +8,7 @@ import { toNumber } from "@/lib/money";
 import { pageFrom, pageSlice, pageInfo } from "@/lib/pagination";
 import { PageHeader } from "@/components/layout/page-header";
 import { ExpiredSubscriptions } from "@/components/reception/expired-subscriptions";
+import { phoneSearchTerm } from "@/lib/phone";
 
 export const metadata: Metadata = { title: "Expired subscriptions" };
 
@@ -26,7 +27,7 @@ export default async function ExpiredPage({
   const where = {
     status: "EXPIRED" as const,
     ...(q
-      ? { member: { OR: [{ name: { contains: q, mode: "insensitive" as const } }, { phone: { contains: q, mode: "insensitive" as const } }] } }
+      ? { member: { OR: [{ name: { contains: q, mode: "insensitive" as const } }, { phone: { contains: phoneSearchTerm(q) ?? q, mode: "insensitive" as const } }] } }
       : {}),
   };
   const current = pageFrom(page);

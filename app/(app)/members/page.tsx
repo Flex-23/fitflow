@@ -9,6 +9,7 @@ import { toNumber, sum, remainingBalance } from "@/lib/money";
 import { pageFrom, pageSlice, pageInfo } from "@/lib/pagination";
 import { PageHeader } from "@/components/layout/page-header";
 import { MembersTable, type SubInfo } from "@/components/reception/members-table";
+import { phoneSearchTerm } from "@/lib/phone";
 
 export const metadata: Metadata = { title: "Members" };
 
@@ -29,7 +30,7 @@ export default async function MembersPage({
     ? {
         OR: [
           { name: { contains: q, mode: "insensitive" as const } },
-          { phone: { contains: q, mode: "insensitive" as const } },
+          { phone: { contains: phoneSearchTerm(q) ?? q, mode: "insensitive" as const } },
           { cardNumber: { contains: q.replace(/^0+(?=\d)/, ""), mode: "insensitive" as const } },
         ],
       }

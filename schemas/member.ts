@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { canonicalPhone } from "@/lib/phone";
 
 const emptyToUndefined = (v: unknown) =>
   v === "" || v === null || v === undefined ? undefined : v;
@@ -20,7 +21,14 @@ export type FemaleMeasurement = (typeof FEMALE_MEASUREMENTS)[number];
 
 const memberFields = z.object({
   name: z.string().trim().min(2),
-  phone: z.string().trim().min(6).max(20),
+  // Stored in one form whatever way it was typed (see lib/phone.ts), so the
+  // uniqueness check and every lookup see the same number.
+  phone: z
+    .string()
+    .trim()
+    .max(25)
+    .transform((v) => canonicalPhone(v))
+    .pipe(z.string().min(8).max(16)),
   // Access card as typed by the desk reader (see lib/gate/card.ts).
   cardNumber: z.preprocess(
     emptyToUndefined,
