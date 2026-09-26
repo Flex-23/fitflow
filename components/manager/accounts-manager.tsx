@@ -171,18 +171,22 @@ export function AccountsManager({
             <TableHeader>
               <TableRow>
                 <TableHead justify="center" className="w-[5%]">#</TableHead>
-                <TableHead className="w-[24%]">{t.displayName}</TableHead>
-                <TableHead className="w-[15%]">{dict.auth.username}</TableHead>
+                <TableHead className="w-[26%]">{t.displayName}</TableHead>
+                <TableHead className="w-[17%]">{dict.auth.username}</TableHead>
                 <TableHead justify="center" className="w-[13%]">
                   {t.role}
                 </TableHead>
                 <TableHead justify="center" className="w-[10%]">
                   {dict.common.status}
                 </TableHead>
-                <TableHead justify="center" className="w-[10%]">
+                <TableHead justify="center" className="w-[13%]">
                   {t.canAddVideos}
                 </TableHead>
-                <TableHead justify="end" className="w-[23%]">{dict.common.actions}</TableHead>
+                {/* Sized to what the buttons actually need, not an even
+                    share of the row — a wide "end"-justified column here
+                    would pack its buttons against the far edge and leave a
+                    gap between them and the column before it. */}
+                <TableHead justify="end" className="w-[16%]">{dict.common.actions}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
