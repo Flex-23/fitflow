@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createMemberSession, getMemberSession } from "@/lib/member-session";
+import { createMemberSession, getMemberSession, clearMemberSession } from "@/lib/member-session";
 import { clientKey, lockedFor, recordFailure, clearFailures } from "@/lib/rate-limit";
 import { consumePortalToken, PORTAL_RULE } from "@/lib/member-portal";
 
@@ -46,8 +46,15 @@ export async function GET(req: NextRequest) {
   if (!entry.ok) {
     // Tapping the same link twice is the commonest way to land here, and the
     // phone is already signed in — show the page rather than an error about a
-    // link that did its job.
-    if (await getMemberSession()) return to("/me");
+    // link that did its job. But only when it is signed in as the member this
+    // link was for: a phone holding someone else's session (a shared phone,
+    // or staff who opened a member's link to check it) must never be shown
+    // that other person's page in answer to this link. That session is
+    // dropped instead, and the link reported as expired.
+    const session = await getMemberSession();
+    const linkFor = req.nextUrl.searchParams.get("m")?.trim();
+    if (session && linkFor && session.memberId === linkFor) return to("/me");
+    if (session) await clearMemberSession();
 
     await recordFailure(key, PORTAL_RULE);
     // Used, expired and never-existed all look the same from out here, on

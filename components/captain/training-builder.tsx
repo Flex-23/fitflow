@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useMemo, useState, useTransition } from "react";
+import { memo, useCallback, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   Save,
@@ -148,10 +148,17 @@ export function TrainingBuilder({
   );
 
   /* ── member ── */
+  // Each pick gets a number; only the latest one may land. Without this, a
+  // member picked while an earlier pick was still loading could be replaced
+  // by the earlier one when its slower answer arrived — and the course would
+  // then be saved and sent to the wrong person.
+  const pickSeq = useRef(0);
   function selectMember(id: string) {
+    const seq = ++pickSeq.current;
     setSaved(null);
     startLoading(async () => {
       const ctx = await getMemberTraining(id);
+      if (seq !== pickSeq.current) return;
       if (!ctx) {
         toast.error(dict.common.somethingWrong);
         return;
@@ -161,6 +168,7 @@ export function TrainingBuilder({
     });
   }
   function clearMember() {
+    pickSeq.current++;
     setMember(null);
     setPrevious([]);
     setSaved(null);
@@ -234,6 +242,7 @@ export function TrainingBuilder({
     if (!member) return toast.error(t.noMemberSelected);
     const payloadDays = buildPayload();
     if (payloadDays.length === 0) return toast.error(t.addExerciseFirst);
+    const seq = pickSeq.current;
     startSaving(async () => {
       const res = await createTrainingCourse({
         memberId: member.id,
@@ -246,7 +255,11 @@ export function TrainingBuilder({
       }
       toast.success(t.saved);
 
+      // The captain may have moved on to another member while this saved;
+      // this member's history must not be shown under theirs.
+      if (seq !== pickSeq.current) return;
       const ctx = await getMemberTraining(member.id);
+      if (seq !== pickSeq.current) return;
       if (ctx) setPrevious(ctx.courses);
 
       // On the way out there is nothing left to do with this course, so the

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Plus, Send, FileDown, Salad, Loader2 } from "lucide-react";
 import { createNutritionCourse } from "@/app/actions/nutrition";
@@ -46,10 +46,14 @@ export function NutritionBuilder({
   const [saving, startSaving] = useTransition();
   const [saved, setSaved] = useState<{ id: string; shareToken: string | null } | null>(null);
 
+  // Only the latest pick may land — see the training builder.
+  const pickSeq = useRef(0);
   function selectMember(m: BasicMember) {
+    const seq = ++pickSeq.current;
     setSaved(null);
     startLoading(async () => {
       const profile = await getMemberProfile(m.id);
+      if (seq !== pickSeq.current) return;
       if (!profile) {
         toast.error(dict.common.somethingWrong);
         return;
@@ -73,6 +77,7 @@ export function NutritionBuilder({
       label: `${t.day} ${i + 1}`,
       meals: d.meals.map((m) => m.text.trim()),
     }));
+    const seq = pickSeq.current;
     startSaving(async () => {
       const res = await createNutritionCourse({ memberId: member.id, days: payloadDays });
       if (!res.ok || !res.id) {
@@ -80,6 +85,8 @@ export function NutritionBuilder({
         return;
       }
       toast.success(t.saved);
+      // Another member was picked while this saved — nothing below is theirs.
+      if (seq !== pickSeq.current) return;
 
       // Saving sends the member their link — see the training builder.
       if (reportCourseLink(res.link, dict)) resetBuilder();
@@ -101,6 +108,7 @@ export function NutritionBuilder({
           dict={dict}
           locale={locale}
           onClear={() => {
+            pickSeq.current++;
             setMember(null);
             setSaved(null);
           }}

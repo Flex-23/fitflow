@@ -33,7 +33,11 @@ export async function deliverPortalLink(
   const token = await issuePortalToken(member.id);
   if (!token) return { ok: false, reason: "not_found" };
 
-  const url = `${appUrl()}/me/enter?k=${token}`;
+  // `m` names the member the link is for. It unlocks nothing — the token is
+  // the credential — but it lets a link that has already been used tell
+  // "this phone is already signed in as the right person" apart from "this
+  // phone is signed in as somebody else" (see /me/enter).
+  const url = `${appUrl()}/me/enter?k=${token}&m=${member.id}`;
   const text = buildPortalMessage(member.name, url);
   const phone = toInternational(member.phone);
 
