@@ -37,7 +37,7 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (pathname === "/login" && session) {
+  if (startsWithSegment(pathname, "/login") && session) {
     // The Data Access Layer sends sessions whose user no longer exists (or was
     // deactivated) here. Server Components cannot clear cookies, but the proxy
     // can — so the dead cookie dies on the login page itself.

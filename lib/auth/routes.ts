@@ -32,6 +32,7 @@ export const STAFF_PREFIXES = [
   "/backup",
   "/captains",
   "/master",
+  "/ratings",
   "/no-access",
 ] as const;
 
