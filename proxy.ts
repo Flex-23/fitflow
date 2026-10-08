@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { decryptSession, SESSION_COOKIE } from "@/lib/auth/session-crypto";
 import { roleHome } from "@/lib/auth/rbac";
 import { isStaffPath, startsWithSegment } from "@/lib/auth/routes";
+import { demoMode } from "@/lib/auth/demo";
 
 // Next.js 16 renamed Middleware to Proxy. This runs optimistic auth checks
 // (cookie only, no DB) — the secure checks live in the Data Access Layer.
@@ -38,7 +39,7 @@ export async function proxy(req: NextRequest) {
   // Forgetting to add a new page to that list is safe: it falls through to
   // the page, which calls requireSection and redirects the same way. The
   // proxy saves a round trip; it is not what protects anything.
-  if (!isPublic && !session && isStaffPath(pathname)) {
+  if (!isPublic && !session && isStaffPath(pathname) && !demoMode()) {
     const url = new URL("/login", req.nextUrl);
     url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);

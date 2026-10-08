@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import type { Role, Section } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "./session";
-import { hasSection, homeFor, isMaster } from "./rbac";
+import { demoMode } from "./demo";
+import { ALL_SECTIONS, hasSection, homeFor, isMaster } from "./rbac";
 
 export type CurrentUser = {
   id: string;
@@ -22,7 +23,23 @@ export type CurrentUser = {
  */
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const session = await getSession();
-  if (!session) return null;
+  if (!session) {
+    // Demo mode: no sign-in needed — act as a MANAGER with every management
+    // section, so the whole staff app is open. Never the master: master-only
+    // screens (accounts, platform) stay out of reach.
+    if (demoMode()) {
+      const sel = {
+        id: true, username: true, displayName: true,
+        isActive: true, canAddVideos: true,
+      } as const;
+      const base =
+        (await prisma.user.findFirst({ where: { role: "MANAGER", isActive: true }, select: sel })) ??
+        (await prisma.user.findFirst({ where: { role: { not: "MASTER" }, isActive: true }, select: sel }));
+      if (!base) return null;
+      return { ...base, role: "MANAGER", sections: ALL_SECTIONS };
+    }
+    return null;
+  }
 
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
