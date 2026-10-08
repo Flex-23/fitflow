@@ -1,0 +1,328 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { nanoid } from "nanoid";
+import type { Prisma } from "@prisma/client";
+import { requireSection } from "@/lib/auth/dal";
+import { prisma } from "@/lib/prisma";
+import { logActivity } from "@/lib/activity";
+import { trainingCourseSchema } from "@/schemas/course";
+import { purgeExpiredCourses, twoMonthsFromNow } from "@/lib/courses";
+import { sendCourseLink, type PortalLinkResult } from "@/lib/portal-delivery";
+import { phoneSearchTerm } from "@/lib/phone";
+
+export async function searchMembers(query: string) {
+  await requireSection("COACHING");
+  const q = query.trim();
+  if (!q) return [];
+  return prisma.member.findMany({
+    where: { OR: [{ name: { contains: q, mode: "insensitive" as const } }, { phone: { contains: phoneSearchTerm(q) ?? q, mode: "insensitive" as const } }] },
+    select: { id: true, name: true, phone: true },
+    take: 8,
+    orderBy: { name: "asc" },
+  });
+}
+
+export type TrainingCourseDTO = {
+  id: string;
+  title: string | null;
+  createdAt: string;
+  expiresAt: string | null;
+  /** Public link token; null for templates. */
+  shareToken: string | null;
+  /** Last successful WhatsApp delivery (international digits) and when. */
+  sentTo: string | null;
+  sentAt: string | null;
+  days: {
+    label: string;
+    exercises: {
+      name: string;
+      reps: string;
+      videoId: string | null;
+      videoToken: string | null;
+      supersetGroup: number | null;
+    }[];
+  }[];
+};
+
+/** Everything the builder shows about the selected member. */
+export type MemberTrainingProfile = {
+  id: string;
+  name: string;
+  phone: string;
+  gender: "MALE" | "FEMALE";
+  age: number | null;
+  height: number | null;
+  weight: number | null;
+  chest: number | null;
+  waist: number | null;
+  hips: number | null;
+  glutes: number | null;
+  arm: number | null;
+  subscription: {
+    planName: string;
+    status: "ACTIVE" | "EXPIRED" | "FROZEN" | "CANCELLED";
+    startDate: string;
+    endDate: string;
+  } | null;
+};
+
+const courseInclude = {
+  days: {
+    orderBy: { order: "asc" as const },
+    include: { exercises: { orderBy: { order: "asc" as const } } },
+  },
+};
+
+function serializeCourse(course: {
+  id: string;
+  title: string | null;
+  createdAt: Date;
+  expiresAt: Date | null;
+  shareToken: string | null;
+  sentTo: string | null;
+  sentAt: Date | null;
+  days: {
+    label: string;
+    exercises: {
+      name: string;
+      reps: string;
+      videoId: string | null;
+      videoToken: string | null;
+      supersetGroup: number | null;
+    }[];
+  }[];
+}): TrainingCourseDTO {
+  return {
+    id: course.id,
+    title: course.title,
+    createdAt: course.createdAt.toISOString(),
+    expiresAt: course.expiresAt?.toISOString() ?? null,
+    shareToken: course.shareToken,
+    sentTo: course.sentTo,
+    sentAt: course.sentAt?.toISOString() ?? null,
+    days: course.days.map((d) => ({
+      label: d.label,
+      exercises: d.exercises.map((e) => ({
+        name: e.name,
+        reps: e.reps,
+        videoId: e.videoId,
+        videoToken: e.videoToken,
+        supersetGroup: e.supersetGroup,
+      })),
+    })),
+  };
+}
+
+/** Profile only (no course history) — enough for the nutrition builder. */
+export async function getMemberProfile(memberId: string): Promise<MemberTrainingProfile | null> {
+  await requireSection("COACHING");
+  const now = new Date();
+  const member = await prisma.member.findUnique({
+    where: { id: memberId },
+    include: { subscriptions: { orderBy: { createdAt: "desc" }, take: 5 } },
+  });
+  if (!member) return null;
+  return toProfile(member, now);
+}
+
+type MemberWithSubs = Prisma.MemberGetPayload<{ include: { subscriptions: true } }>;
+
+function toProfile(member: MemberWithSubs, now: Date): MemberTrainingProfile {
+  // Prefer the subscription that is running right now; otherwise the latest.
+  const sub =
+    member.subscriptions.find(
+      (s) =>
+        (s.status === "ACTIVE" || s.status === "FROZEN") &&
+        s.startDate <= now &&
+        s.endDate > now
+    ) ?? member.subscriptions[0];
+
+  return {
+    id: member.id,
+    name: member.name,
+    phone: member.phone,
+    gender: member.gender,
+    age: member.age,
+    height: member.height,
+    weight: member.weight,
+    chest: member.chest,
+    waist: member.waist,
+    hips: member.hips,
+    glutes: member.glutes,
+    arm: member.arm,
+    subscription: sub
+      ? {
+          planName: sub.planName,
+          status: sub.status,
+          startDate: sub.startDate.toISOString(),
+          endDate: sub.endDate.toISOString(),
+        }
+      : null,
+  };
+}
+
+/** Member profile + their previous (non-template) courses for the builder. */
+export async function getMemberTraining(
+  memberId: string
+): Promise<{ member: MemberTrainingProfile; courses: TrainingCourseDTO[] } | null> {
+  await requireSection("COACHING");
+  await purgeExpiredCourses();
+
+  const now = new Date();
+  const member = await prisma.member.findUnique({
+    where: { id: memberId },
+    include: { subscriptions: { orderBy: { createdAt: "desc" }, take: 5 } },
+  });
+  if (!member) return null;
+
+  const courses = await prisma.trainingCourse.findMany({
+    where: { memberId, isTemplate: false },
+    include: courseInclude,
+    orderBy: { createdAt: "desc" },
+    take: 10,
+  });
+
+  return { member: toProfile(member, now), courses: courses.map(serializeCourse) };
+}
+
+export async function createTrainingCourse(input: unknown): Promise<{
+  ok: boolean;
+  id?: string;
+  shareToken?: string;
+  /** What happened to the member's link, sent alongside a real course. */
+  link?: PortalLinkResult;
+  error?: string;
+}> {
+  const user = await requireSection("COACHING");
+  const parsed = trainingCourseSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  const d = parsed.data;
+
+  if (!d.isTemplate && !d.memberId) return { ok: false, error: "member_required" };
+
+  const course = await prisma.trainingCourse.create({
+    data: {
+      memberId: d.isTemplate ? null : d.memberId!,
+      title: d.title ?? null,
+      isTemplate: d.isTemplate,
+      createdById: user.id,
+      // Templates are never shared with a member.
+      shareToken: d.isTemplate ? null : nanoid(24),
+      expiresAt: d.isTemplate ? null : twoMonthsFromNow(),
+      days: {
+        create: d.days.map((day, i) => ({
+          label: day.label,
+          order: i,
+          exercises: {
+            create: day.exercises.map((e, j) => ({
+              name: e.name,
+              reps: e.reps,
+              order: j,
+              videoId: e.videoId ?? null,
+              videoToken: e.videoToken ?? null,
+              supersetGroup: e.supersetGroup ?? null,
+            })),
+          },
+        })),
+      },
+    },
+  });
+
+  await logActivity({
+    userId: user.id,
+    action: d.isTemplate ? "SAVE_TEMPLATE" : "CREATE_TRAINING_COURSE",
+    targetType: "TrainingCourse",
+    targetId: course.id,
+    details: d.title ?? undefined,
+  });
+
+  // A saved course is a course the member should be able to read, so the
+  // link to their page goes out with it — no second button, no decision for
+  // the captain to make. A failure here is not the course's failure, so it
+  // only changes what the screen reports.
+  const link = d.isTemplate ? null : await sendCourseLink(user.id, d.memberId!);
+
+  revalidatePath("/training");
+  return {
+    ok: true,
+    id: course.id,
+    shareToken: course.shareToken ?? undefined,
+    link: link ?? undefined,
+  };
+}
+
+/** Replace a template's title and days in place (keeps its id). */
+export async function updateTemplate(
+  id: string,
+  input: unknown
+): Promise<{ ok: boolean; error?: string }> {
+  const user = await requireSection("COACHING");
+  const parsed = trainingCourseSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "invalid" };
+  const d = parsed.data;
+
+  const existing = await prisma.trainingCourse.findFirst({
+    where: { id, isTemplate: true },
+    select: { id: true },
+  });
+  if (!existing) return { ok: false, error: "not_found" };
+
+  await prisma.$transaction(async (tx) => {
+    // Days cascade to exercises, so wiping days resets the whole body.
+    await tx.courseDay.deleteMany({ where: { trainingCourseId: id } });
+    await tx.trainingCourse.update({
+      where: { id },
+      data: {
+        title: d.title ?? null,
+        days: {
+          create: d.days.map((day, i) => ({
+            label: day.label,
+            order: i,
+            exercises: {
+              create: day.exercises.map((e, j) => ({
+                name: e.name,
+                reps: e.reps,
+                order: j,
+                videoId: e.videoId ?? null,
+                videoToken: e.videoToken ?? null,
+                supersetGroup: e.supersetGroup ?? null,
+              })),
+            },
+          })),
+        },
+      },
+    });
+  });
+
+  await logActivity({
+    userId: user.id,
+    action: "UPDATE_TEMPLATE",
+    targetType: "TrainingCourse",
+    targetId: id,
+    details: d.title ?? undefined,
+  });
+
+  revalidatePath("/training");
+  return { ok: true };
+}
+
+export async function deleteTemplate(id: string): Promise<{ ok: boolean }> {
+  const user = await requireSection("COACHING");
+  const tpl = await prisma.trainingCourse.findFirst({
+    where: { id, isTemplate: true },
+    select: { title: true },
+  });
+  if (!tpl) return { ok: false };
+
+  await prisma.trainingCourse.delete({ where: { id } });
+  await logActivity({
+    userId: user.id,
+    action: "DELETE_TEMPLATE",
+    targetType: "TrainingCourse",
+    targetId: id,
+    details: tpl.title ?? undefined,
+  });
+  revalidatePath("/training");
+  return { ok: true };
+}

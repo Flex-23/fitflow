@@ -1,0 +1,60 @@
+-- AlterTable
+ALTER TABLE `activitylog` MODIFY `action` ENUM('REGISTER_MEMBER', 'UPDATE_MEMBER', 'DELETE_MEMBER', 'RENEW_SUBSCRIPTION', 'RECEIVE_PAYMENT', 'FREEZE_SUBSCRIPTION', 'UNFREEZE_SUBSCRIPTION', 'CANCEL_SUBSCRIPTION', 'CREATE_PLAN', 'UPDATE_PLAN', 'ARCHIVE_PLAN', 'CREATE_TRAINING_COURSE', 'CREATE_NUTRITION_COURSE', 'SAVE_TEMPLATE', 'UPDATE_TEMPLATE', 'DELETE_TEMPLATE', 'ADD_VIDEO', 'EDIT_VIDEO', 'DELETE_VIDEO', 'CREATE_USER', 'UPDATE_USER', 'TOGGLE_VIDEO_PERMISSION', 'CREATE_EXPENSE', 'DELETE_EXPENSE', 'CREATE_DEBT', 'RECEIVE_DEBT_PAYMENT', 'DELETE_DEBT') NOT NULL;
+
+-- CreateTable
+CREATE TABLE `Expense` (
+    `id` VARCHAR(191) NOT NULL,
+    `title` VARCHAR(191) NOT NULL,
+    `amount` DECIMAL(12, 2) NOT NULL,
+    `category` ENUM('RENT', 'SALARY', 'EQUIPMENT', 'MAINTENANCE', 'UTILITIES', 'SUPPLIES', 'OTHER') NOT NULL DEFAULT 'OTHER',
+    `note` TEXT NULL,
+    `spentAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `createdById` VARCHAR(191) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `Expense_spentAt_idx`(`spentAt`),
+    INDEX `Expense_category_idx`(`category`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `Debt` (
+    `id` VARCHAR(191) NOT NULL,
+    `personName` VARCHAR(191) NOT NULL,
+    `phone` VARCHAR(191) NOT NULL,
+    `amount` DECIMAL(12, 2) NOT NULL,
+    `note` TEXT NULL,
+    `createdById` VARCHAR(191) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    INDEX `Debt_personName_idx`(`personName`),
+    INDEX `Debt_createdAt_idx`(`createdAt`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `DebtPayment` (
+    `id` VARCHAR(191) NOT NULL,
+    `debtId` VARCHAR(191) NOT NULL,
+    `amount` DECIMAL(12, 2) NOT NULL,
+    `note` VARCHAR(191) NULL,
+    `createdById` VARCHAR(191) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `DebtPayment_debtId_idx`(`debtId`),
+    INDEX `DebtPayment_createdAt_idx`(`createdAt`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- AddForeignKey
+ALTER TABLE `Expense` ADD CONSTRAINT `Expense_createdById_fkey` FOREIGN KEY (`createdById`) REFERENCES `User`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `Debt` ADD CONSTRAINT `Debt_createdById_fkey` FOREIGN KEY (`createdById`) REFERENCES `User`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `DebtPayment` ADD CONSTRAINT `DebtPayment_debtId_fkey` FOREIGN KEY (`debtId`) REFERENCES `Debt`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `DebtPayment` ADD CONSTRAINT `DebtPayment_createdById_fkey` FOREIGN KEY (`createdById`) REFERENCES `User`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;

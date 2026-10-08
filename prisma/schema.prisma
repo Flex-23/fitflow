@@ -1,0 +1,687 @@
+// FitFlow — data model
+// Database: PostgreSQL (Supabase).
+//
+// DATABASE_URL points at the transaction-mode pooler (pgbouncer) that the app
+// and the gym-side workers use; DIRECT_URL is the session-mode port, which
+// Prisma needs for migrations because pgbouncer cannot run them.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ────────────────────────────── Enums ──────────────────────────────
+
+enum Role {
+  /// The owner. One account, reached by its own hidden address, that can see
+  /// and do everything — including deciding what each manager may open.
+  MASTER
+  MANAGER
+  RECEPTION
+  CAPTAIN
+}
+
+/// A part of the system a manager may be given, matching the groups in the
+/// sidebar so a granted section is a visible, whole thing rather than a
+/// scattering of pages.
+enum Section {
+  /// Registration, subscriptions, members, the gate.
+  RECEPTION
+  /// Training and nutrition courses.
+  COACHING
+  /// The exercise video library.
+  LIBRARY
+  /// Reports, expenses, debts, plans.
+  FINANCE
+  /// Archive, activity log, notifications, settings, backup.
+  MANAGEMENT
+  /// Creating and editing staff accounts.
+  STAFF
+}
+
+enum PaymentMethod {
+  CASH
+  DEFERRED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum ExpenseCategory {
+  RENT
+  SALARY
+  EQUIPMENT
+  MAINTENANCE
+  UTILITIES
+  SUPPLIES
+  OTHER
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  FROZEN
+  CANCELLED
+}
+
+enum ActivityAction {
+  REGISTER_MEMBER
+  UPDATE_MEMBER
+  DELETE_MEMBER
+  RENEW_SUBSCRIPTION
+  RECEIVE_PAYMENT
+  FREEZE_SUBSCRIPTION
+  UNFREEZE_SUBSCRIPTION
+  CANCEL_SUBSCRIPTION
+  CREATE_PLAN
+  UPDATE_PLAN
+  ARCHIVE_PLAN
+  CREATE_TRAINING_COURSE
+  CREATE_NUTRITION_COURSE
+  SAVE_TEMPLATE
+  UPDATE_TEMPLATE
+  DELETE_TEMPLATE
+  ADD_VIDEO
+  EDIT_VIDEO
+  DELETE_VIDEO
+  CREATE_USER
+  UPDATE_USER
+  TOGGLE_VIDEO_PERMISSION
+  CREATE_EXPENSE
+  UPDATE_EXPENSE
+  DELETE_EXPENSE
+  CREATE_DEBT
+  RECEIVE_DEBT_PAYMENT
+  DELETE_DEBT
+  CREATE_BACKUP
+  RESTORE_BACKUP
+  SEND_COURSE
+  SEND_PORTAL_LINK
+  REVOKE_PORTAL_ACCESS
+  SET_PERMISSIONS
+  UPDATE_SETTINGS
+}
+
+enum NotificationType {
+  EXPIRING_SOON
+  EXPIRING_TODAY
+  DEFERRED_BALANCE
+  FROZEN_SUBSCRIPTION
+  MEMBER_REGISTERED_DEFERRED
+}
+
+// ────────────────────────────── Accounts ──────────────────────────────
+
+model User {
+  id             String   @id @default(cuid())
+  username       String   @unique
+  displayName    String
+  hashedPassword String
+  role           Role
+  isActive       Boolean  @default(true)
+  // Per-captain permission: may the captain add videos to the library?
+  canAddVideos   Boolean  @default(false)
+  /// Which parts of the system this manager may open, decided by the master.
+  /// Meaningless for the other roles: a master sees everything, and reception
+  /// and captains have a fixed remit that comes with the job.
+  sections       Section[] @default([])
+  /// Set when the account is deleted. The row is kept — signed out, hidden
+  /// from every list, its username freed — so its activity log survives for
+  /// a retention period, after which the account and its log are removed
+  /// for good (see lib/activity.ts).
+  deletedAt      DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Who created this account (manager). Self-relation.
+  createdById  String?
+  createdBy    User?   @relation("UserCreator", fields: [createdById], references: [id])
+  createdUsers User[]  @relation("UserCreator")
+
+  activityLogs      ActivityLog[]
+  videosAdded       Video[]
+  subscriptionsMade Subscription[]
+  paymentsReceived  Payment[]
+  freezesApplied    FreezeRecord[]
+  trainingCourses   TrainingCourse[]
+  nutritionCourses  NutritionCourse[]
+  expenses          Expense[]
+  debts             Debt[]
+  debtPayments      DebtPayment[]
+
+  @@index([role])
+}
+
+// ────────────────────────────── Members ──────────────────────────────
+
+model Member {
+  id        String   @id @default(cuid())
+  name      String
+  gender    Gender   @default(MALE)
+  age       Int?
+  height    Float? // cm
+  weight    Float? // kg
+  // Extra body measurements (cm), collected for female members only.
+  chest     Float?
+  waist     Float?
+  hips      Float?
+  glutes    Float?
+  arm       Float?
+  phone     String   @unique
+  // Access card as the desk reader types it (digits, leading zeros dropped).
+  cardNumber  String? @unique
+  // Low 24 bits of cardNumber — what the turnstile's Wiegand-26 reader
+  // reports to the C3 panel. This is the value the gate bridge looks up.
+  cardWiegand Int?
+  // When the bridge last wrote this member into the panel's own memory
+  // (hybrid mode — docs/gate-hybrid-mode.md). Null before the first sync.
+  gateSyncedAt DateTime?
+  // One-shot credential for the member's own page, sent over WhatsApp.
+  // It is minted when staff press send, dies three minutes later, and is
+  // destroyed the moment it is used — so the message left sitting in a chat
+  // is worthless to anyone who reads it afterwards. Null means there is no
+  // live invitation: either it was used, it expired, or none was ever sent.
+  portalToken          String?   @unique
+  portalTokenExpiresAt DateTime?
+  // When this member last activated a link; lets the desk see at a glance
+  // who still needs an invitation.
+  portalActivatedAt    DateTime?
+  // Bumped to invalidate every session already issued to this member — the
+  // way back in after a lost or stolen phone. Sessions carry this number and
+  // are refused once it moves on.
+  portalSessionEpoch   Int       @default(0)
+
+  // ── Member app (phone login + single-device binding) ──
+  // The one device this member's app is tied to. Null until the first verified
+  // login; the manager clears it to let the member sign in on a new phone.
+  appDeviceId        String?
+  appBoundAt         DateTime?
+  // First-login (and re-bind) one-time code, hashed, sent over WhatsApp. The
+  // member types it once to prove they own the number before the device binds.
+  appOtpHash         String?
+  appOtpExpiresAt    DateTime?
+  // Bumped to invalidate every app token already issued (manager reset / lost
+  // phone); tokens carry this number and stop verifying once it moves on.
+  appSessionEpoch    Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscriptions    Subscription[]
+  trainingCourses  TrainingCourse[]
+  nutritionCourses NutritionCourse[]
+  notifications    Notification[]
+  gateLogs         GateLog[]
+  gateCommands     GateCommand[]
+  videoRatings     VideoRating[]
+
+  @@index([name])
+  @@index([cardWiegand])
+}
+
+// ────────────────────────────── Subscriptions ──────────────────────────────
+
+model SubscriptionPlan {
+  id           String   @id @default(cuid())
+  name         String
+  durationDays Int
+  price        Decimal  @db.Decimal(10, 2)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id       String @id @default(cuid())
+  memberId String
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  // Snapshot of the plan at purchase time. Active subscriptions keep their
+  // original price; a renewal creates a NEW subscription at the latest price.
+  planId       String?
+  plan         SubscriptionPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+  planName     String
+  durationDays Int
+  price        Decimal           @db.Decimal(10, 2)
+
+  method    PaymentMethod
+  status    SubscriptionStatus @default(ACTIVE)
+  startDate DateTime           @default(now())
+  endDate   DateTime
+
+  // Freeze bookkeeping. Frozen days are added onto endDate.
+  frozenDaysTotal Int       @default(0)
+  freezeUntil     DateTime?
+
+  createdById String?
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments Payment[]
+  freezes  FreezeRecord[]
+
+  @@index([memberId])
+  @@index([status])
+  @@index([endDate])
+}
+
+model Payment {
+  id             String       @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  amount         Decimal      @db.Decimal(10, 2)
+  note           String?
+  createdById    String?
+  createdBy      User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt      DateTime     @default(now())
+
+  @@index([subscriptionId])
+}
+
+model FreezeRecord {
+  id             String       @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  days           Int
+  reason         String       @db.Text
+  startedAt      DateTime     @default(now())
+  endsAt         DateTime
+  createdById    String?
+  createdBy      User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt      DateTime     @default(now())
+
+  @@index([subscriptionId])
+}
+
+// ────────────────────────────── Videos library ──────────────────────────────
+
+enum VideoSource {
+  /// A file the gym uploaded; lives in the private Supabase bucket.
+  UPLOAD
+  /// Somebody else's video — YouTube, TikTok or any other address.
+  LINK
+}
+
+model Video {
+  id           String      @id @default(cuid())
+  exerciseName String
+  source       VideoSource @default(UPLOAD)
+
+  // ── Uploaded videos ── (null for links)
+  /// The object in the bucket — never exposed to any client.
+  storedFilename String?
+  originalName   String?
+  mimeType       String?
+  sizeBytes      Int?
+
+  // ── Linked videos ── (null for uploads)
+  /// The address as it was pasted, kept so it can be shown and re-parsed.
+  url String? @db.Text
+
+  // Non-guessable public token used in URLs (nanoid). Both kinds have one, so
+  // a course PDF links to /watch/{token} without caring where the video is.
+  hiddenToken String   @unique
+  addedById   String?
+  addedBy     User?    @relation(fields: [addedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  exercises Exercise[]
+  ratings   VideoRating[]
+
+  @@index([exerciseName])
+}
+
+/// A member's rating of one exercise video, given from the watch page.
+/// One per member per video — set once, never edited, and read-only after
+/// that; the star and the note are the member's own word, not a running
+/// conversation. Kept behind `videoRating.enabled` (see `lib/video-rating.ts`)
+/// so the whole feature can be switched off later without touching the data
+/// already collected.
+model VideoRating {
+  id       String @id @default(cuid())
+  videoId  String
+  video    Video  @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  memberId String
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  stars Int
+  // Optional, short by design — a line, not a review.
+  note  String? @db.VarChar(150)
+
+  createdAt DateTime @default(now())
+
+  @@unique([videoId, memberId])
+  @@index([videoId])
+}
+
+// ────────────────────────────── Training courses ──────────────────────────────
+
+model TrainingCourse {
+  id         String  @id @default(cuid())
+  // Templates are not tied to a member and never auto-expire.
+  memberId   String?
+  member     Member? @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  title      String?
+  isTemplate Boolean @default(false)
+  // Non-guessable token that lets the member open their own PDF without an
+  // account (shared over WhatsApp). Null for templates.
+  shareToken String? @unique
+
+  createdById String?
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime  @default(now())
+  // Member courses auto-delete after 2 months; templates keep this null.
+  expiresAt DateTime?
+  // Last successful WhatsApp delivery: international number (digits only)
+  // the PDF went to, and when. Null until the first successful send.
+  sentTo String?
+  sentAt DateTime?
+
+  days CourseDay[]
+
+  @@index([memberId])
+  @@index([isTemplate])
+  @@index([expiresAt])
+}
+
+model CourseDay {
+  id               String         @id @default(cuid())
+  trainingCourseId String
+  trainingCourse   TrainingCourse @relation(fields: [trainingCourseId], references: [id], onDelete: Cascade)
+  label            String
+  order            Int
+
+  exercises Exercise[]
+
+  @@index([trainingCourseId])
+}
+
+model Exercise {
+  id            String    @id @default(cuid())
+  courseDayId   String
+  courseDay     CourseDay @relation(fields: [courseDayId], references: [id], onDelete: Cascade)
+  name          String
+  reps          String
+  order         Int
+  // Attached hidden video link (from the library). Snapshot of the token is
+  // kept so copied courses / generated PDFs keep working links.
+  videoId       String?
+  video         Video?    @relation(fields: [videoId], references: [id], onDelete: SetNull)
+  videoToken    String?
+  // Exercises sharing the same group number within a day form a superset
+  // (supports 2, 3 or more). Null = standalone exercise.
+  supersetGroup Int?
+
+  @@index([courseDayId])
+}
+
+// ────────────────────────────── Nutrition courses ──────────────────────────────
+
+model NutritionCourse {
+  id         String  @id @default(cuid())
+  memberId   String
+  member     Member  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  // See TrainingCourse.shareToken.
+  shareToken String? @unique
+
+  createdById String?
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime  @default(now())
+  expiresAt DateTime?
+  // See TrainingCourse.sentTo / sentAt.
+  sentTo String?
+  sentAt DateTime?
+
+  days NutritionDay[]
+
+  @@index([memberId])
+  @@index([expiresAt])
+}
+
+model NutritionDay {
+  id                String          @id @default(cuid())
+  nutritionCourseId String
+  nutritionCourse   NutritionCourse @relation(fields: [nutritionCourseId], references: [id], onDelete: Cascade)
+  label             String?
+  order             Int
+
+  meals NutritionMeal[]
+
+  @@index([nutritionCourseId])
+}
+
+model NutritionMeal {
+  id             String       @id @default(cuid())
+  nutritionDayId String
+  nutritionDay   NutritionDay @relation(fields: [nutritionDayId], references: [id], onDelete: Cascade)
+  order          Int
+  text           String       @db.Text
+
+  @@index([nutritionDayId])
+}
+
+// Stored free-text meals become autocomplete suggestions next time.
+model MealSuggestion {
+  id         String   @id @default(cuid())
+  text       String   @unique @db.VarChar(191)
+  usageCount Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// ────────────────────────────── Ops: log, notifications, settings ──────────────
+
+model ActivityLog {
+  id         String         @id @default(cuid())
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action     ActivityAction
+  details    String?        @db.Text
+  targetType String?
+  targetId   String?
+  createdAt  DateTime       @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model Notification {
+  id             String           @id @default(cuid())
+  type           NotificationType
+  title          String
+  body           String?          @db.Text
+  memberId       String?
+  member         Member?          @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  subscriptionId String?
+  isRead         Boolean          @default(false)
+  // Prevents duplicate notifications for the same recurring condition.
+  dedupeKey      String?          @unique
+  createdAt      DateTime         @default(now())
+
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+model Setting {
+  key   String @id
+  value String @db.Text
+}
+
+/// Login / phone-check throttle. In-process memory cannot hold this once the
+/// app runs as serverless functions, so the counters live in the database.
+model RateLimit {
+  key         String    @id
+  fails       Int       @default(0)
+  firstFailAt DateTime  @default(now())
+  lockedUntil DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  @@index([lockedUntil])
+}
+
+// ────────────────────────────── WhatsApp delivery ──────────────────────────────
+
+enum OutboxStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+/// A message waiting to go out on WhatsApp.
+///
+/// The hosted app cannot hold a WhatsApp socket open, so it only queues the
+/// request here; the worker on the gym computer (`npm run whatsapp`) picks it
+/// up and sends it from the gym's number.
+model WhatsAppOutbox {
+  id String @id @default(cuid())
+
+  /// "portal" — plain text, the member's sign-in link; the whole message is
+  /// in `text` and there is no course attached.
+  /// "training" | "nutrition" — a course PDF, downloaded from `shareToken`
+  /// and sent as an attachment; `courseId` says which table it came from.
+  kind       String
+  courseId   String?
+  /// Copied at queue time so the worker needs no joins and the row still
+  /// makes sense in the log after the course auto-expires.
+  memberName String
+  /// International form, digits only (e.g. 9647701234567).
+  phone      String
+  shareToken String?
+  /// The message body, written by the app so the wording lives in one place
+  /// (and with it, for a portal message, the link itself).
+  text       String? @db.Text
+
+  status    OutboxStatus @default(PENDING)
+  attempts  Int          @default(0)
+  lastError String?      @db.Text
+
+  requestedById String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sentAt        DateTime?
+
+  @@index([status, createdAt])
+  @@index([courseId])
+}
+
+// ────────────────────────────── Gate ──────────────────────────────
+
+/// One card presented at the turnstile and what the gate bridge decided.
+/// Written by scripts/gate-bridge.ts, never by the web app.
+model GateLog {
+  id       String  @id @default(cuid())
+  memberId String?
+  member   Member? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  /// Card number exactly as the panel reported it (Wiegand-26 form).
+  card     String
+  door     Int
+  allowed  Boolean
+  /// Why entry was refused: unknown_card, no_subscription, frozen, expired.
+  reason   String?
+  /// Who actually decided: "panel" (opened itself, from its own synced
+  /// memory) or "bridge" (the panel had no answer, so FitFlow decided live).
+  source   String  @default("bridge")
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([memberId])
+}
+
+/// An experimental, opt-in way to open the gate from the member's own page:
+/// the member taps "enter"/"exit", the web app records a short-lived command
+/// here, and the gate bridge (polling this table) opens the door — entirely
+/// separate from the panel's own card memory, which is untouched.
+model GateCommand {
+  id        String   @id @default(cuid())
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  /// "in" or "out" — which button the member pressed.
+  direction String
+  /// pending → the bridge has not acted yet; done / failed / expired after.
+  status    String   @default("pending")
+  /// After this the bridge ignores it (a stale tap must not open the door).
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  consumedAt DateTime?
+
+  @@index([status])
+  @@index([memberId, createdAt])
+}
+
+// ────────────────────────────── Finance ──────────────────────────────
+
+/// Money the gym spends: rent, salaries, equipment, bills…
+model Expense {
+  id       String          @id @default(cuid())
+  /// What it was for, in words. Only "other" spends need one — every other
+  /// category is its own description — so this is usually null and the list
+  /// falls back to the category name.
+  title    String?
+  amount   Decimal         @db.Decimal(12, 2)
+  category ExpenseCategory @default(OTHER)
+  note     String?         @db.Text
+  /// When the money actually left — may differ from when it was recorded.
+  spentAt  DateTime        @default(now())
+
+  createdById String?
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([spentAt])
+  @@index([category])
+}
+
+/// Money owed to the gym by someone who is not on a subscription plan
+/// (equipment sold on credit, a guest pass, a supplier settlement…).
+/// Settled in full or in instalments through DebtPayment.
+model Debt {
+  id         String  @id @default(cuid())
+  personName String
+  phone      String
+  amount     Decimal @db.Decimal(12, 2)
+  note       String? @db.Text
+
+  createdById String?
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments DebtPayment[]
+
+  @@index([personName])
+  @@index([createdAt])
+}
+
+model DebtPayment {
+  id     String  @id @default(cuid())
+  debtId String
+  debt   Debt    @relation(fields: [debtId], references: [id], onDelete: Cascade)
+  amount Decimal @db.Decimal(12, 2)
+  note   String?
+
+  createdById String?
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([debtId])
+  @@index([createdAt])
+}
