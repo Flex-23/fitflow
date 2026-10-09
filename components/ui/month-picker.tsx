@@ -37,6 +37,10 @@ export function MonthPicker({
     const p = new URLSearchParams(params.toString());
     p.set("month", month);
     router.push(`${pathname}?${p.toString()}`);
+    // A search-param-only navigation can be served from the client router
+    // cache, leaving the month-scoped data showing the month we came from.
+    // Force the server component to re-run so the ledger matches the picker.
+    router.refresh();
   }
 
   return (
