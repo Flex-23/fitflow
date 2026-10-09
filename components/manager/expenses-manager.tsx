@@ -61,15 +61,12 @@ const categoryTone: Record<ExpenseCategoryKey, "secondary" | "warning" | "muted"
 export function ExpensesManager({
   rows,
   month,
-  monthStart,
   dict,
   locale,
 }: {
   rows: ExpenseRow[];
   /** YYYY-MM currently being viewed. */
   month: string;
-  /** First day of that month, used as the default date for a new entry. */
-  monthStart: string;
   dict: Dictionary;
   locale: Locale;
 }) {
@@ -196,7 +193,7 @@ export function ExpensesManager({
       )}
 
       <Dialog open={open} onClose={() => setOpen(false)} title={t.newExpense}>
-        <ExpenseForm dict={dict} monthStart={monthStart} onDone={() => setOpen(false)} />
+        <ExpenseForm dict={dict} onDone={() => setOpen(false)} />
       </Dialog>
 
       <Dialog open={editing !== null} onClose={() => setEditing(null)} title={t.editExpense}>
@@ -204,7 +201,6 @@ export function ExpensesManager({
           <ExpenseForm
             key={editing.id}
             dict={dict}
-            monthStart={monthStart}
             expense={editing}
             onDone={() => setEditing(null)}
           />
@@ -263,12 +259,10 @@ function DeleteExpense({ id, dict }: { id: string; dict: Dictionary }) {
  */
 function ExpenseForm({
   dict,
-  monthStart,
   expense,
   onDone,
 }: {
   dict: Dictionary;
-  monthStart: string;
   /** Present when correcting an entry rather than adding one. */
   expense?: ExpenseRow;
   onDone: () => void;
@@ -280,12 +274,11 @@ function ExpenseForm({
     editing ? updateExpense : createExpense,
     emptyState
   );
-  // Default to today, or to the 1st when browsing a past month.
+  // Always default a new entry to today's (local) date, whatever month is open.
   const today = useMemo(() => {
-    const now = new Date();
-    const nowKey = now.toISOString().slice(0, 10);
-    return nowKey.slice(0, 7) === monthStart.slice(0, 7) ? nowKey : monthStart.slice(0, 10);
-  }, [monthStart]);
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
 
   useEffect(() => {
     if (state.ok) {

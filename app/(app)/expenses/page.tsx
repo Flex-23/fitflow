@@ -56,7 +56,6 @@ export default async function ExpensesPage({
       <ExpensesManager
         rows={rows}
         month={selectedMonth}
-        monthStart={from.toISOString()}
         dict={dict}
         locale={locale}
       />
